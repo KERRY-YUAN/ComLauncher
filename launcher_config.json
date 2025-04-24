@@ -1,0 +1,19 @@
+{
+    "comfyui_dir": "D:\\Program\\ComfyUI_Program\\ComfyUI",
+    "python_exe": "D:\\Program\\ComfyUI_Program\\python_embeded\\python.exe",
+    "comfyui_workflows_dir": "D:\\Program\\ComfyUI_Program\\ComfyUI\\user\\default\\workflows",
+    "comfyui_api_port": "8188",
+    "vram_mode": "高负载(8GB以上)",
+    "ckpt_precision": "半精度(FP16)",
+    "clip_precision": "FP8 (E4M3FN)",
+    "unet_precision": "FP8 (E4M3FN)",
+    "vae_precision": "半精度(FP16)",
+    "cuda_malloc": "启用",
+    "ipex_optimization": "启用",
+    "xformers_acceleration": "启用",
+    "git_exe_path": "D:\\Program\\ComfyUI_Program\\ComfyUI\\git\\cmd\\git.exe",
+    "main_repo_url": "https://gitee.com/AIGODLIKE/ComfyUI.git",
+    "node_config_url": "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json",
+    "error_api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash",
+    "error_api_key": ""
+}

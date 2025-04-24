@@ -1,0 +1,5 @@
+# This file lists the minimum required Python packages to run the launcher.py script.
+# Based on launcher.py Ver. 3.0.0
+# python -m venv venv （如无，手动添加venv环境）
+
+requests
