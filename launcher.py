@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 # File: launcher.py
-# Version: Kerry, Ver. 2.4.0 (Threaded Updates, Enhanced Node List, Update All)
+# Version: Kerry, Ver. 2.5.0 (Threaded Updates, Enhanced Node List, Update All, Node Uninstall/Switch History)
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox, font as tkfont, filedialog
+from tkinter import ttk, scrolledtext, messagebox, font as tkfont, filedialog, Toplevel # Import Toplevel for modal window
 import subprocess
 import os
 import threading
@@ -17,6 +17,7 @@ import platform
 import sys
 from datetime import datetime # Import datetime for date parsing
 import shlex # Added for safe command splitting
+import shutil # Added for directory removal (uninstall)
 
 # --- Configuration File ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,7 @@ DEFAULT_XFORMERS_ACCELERATION = "启用"
 # Default Git path (Windows specific example)
 DEFAULT_GIT_EXE_PATH = r"D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe" if platform.system() == "Windows" else "/usr/bin/git" # Default Git path based on OS
 DEFAULT_MAIN_REPO_URL = "https://gitee.com/AIGODLIKE/ComfyUI.git" # Default ComfyUI Main Repository
+# REQUIREMENT 4: Updated Default Node Config URL
 DEFAULT_NODE_CONFIG_URL = "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json" # Default Node Config URL
 DEFAULT_ERROR_API_ENDPOINT = "" # Default Error Analysis API Endpoint
 DEFAULT_ERROR_API_KEY = "" # Default Error Analysis API Key
@@ -70,7 +72,8 @@ FONT_FAMILY_MONO = "Consolas"
 FONT_SIZE_NORMAL = 10
 FONT_SIZE_MONO = 9
 FONT_WEIGHT_BOLD = "bold"
-VERSION_INFO = "ComLauncher, Ver. 2.4.0" # Updated version info for ComLauncher
+# Updated version info for ComLauncher
+VERSION_INFO = "ComLauncher, Ver. 2.5.0"
 
 
 # Special marker for queue
@@ -139,6 +142,10 @@ class ComLauncherApp:
         self.all_known_nodes = [] # To hold the full list of detected nodes (local scan + online config)
         self.local_nodes_only = [] # To hold only the nodes found locally (for default view)
         self.remote_main_body_versions = [] # Store fetched remote versions for main body
+        # Store fetched node history for the modal
+        self._node_history_modal_data = []
+        self._node_history_modal_node_name = ""
+
 
         self.config = {}
 
@@ -538,6 +545,10 @@ class ComLauncherApp:
         self.style.configure('Horizontal.TProgressbar', thickness=6, background=ACCENT_COLOR, troughcolor=CONTROL_FRAME_BG, borderwidth=0)
         self.style.configure('TEntry', fieldbackground=TEXT_AREA_BG, foreground=FG_COLOR, insertcolor='white', bordercolor=BORDER_COLOR, borderwidth=1, padding=(5,4)); self.style.map('TEntry', fieldbackground=[('focus', TEXT_AREA_BG)], bordercolor=[('focus', ACCENT_COLOR)], lightcolor=[('focus', ACCENT_COLOR)])
         self.style.configure('Treeview', background=TEXT_AREA_BG, foreground=FG_STDOUT, fieldbackground=TEXT_AREA_BG, rowheight=22); self.style.configure('Treeview.Heading', font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'), background=CONTROL_FRAME_BG, foreground=FG_COLOR); self.style.map('Treeview', background=[('selected', ACCENT_ACTIVE)], foreground=[('selected', 'white')])
+        # New Treeview styles for Node History Modal
+        self.style.configure('NodeHistory.Treeview', background=TEXT_AREA_BG, foreground=FG_STDOUT, fieldbackground=TEXT_AREA_BG, rowheight=22);
+        self.style.configure('NodeHistory.Treeview.Heading', font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'), background=CONTROL_FRAME_BG, foreground=FG_COLOR);
+        self.style.map('NodeHistory.Treeview', background=[('selected', ACCENT_ACTIVE)], foreground=[('selected', 'white')])
 
 
     # --- UI Setup ---
@@ -637,7 +648,7 @@ class ComLauncherApp:
         version_label = ttk.Label(bottom_frame, text=VERSION_INFO, style="Version.TLabel"); version_label.grid(row=0, column=2, sticky="se", padx=(0, frame_padx))
 
         # --- Update Management Tab ---
-        self.update_frame = ttk.Frame(self.notebook, padding="15", style='TFrame'); self.update_frame.columnconfigure(0, weight=1); self.update_frame.rowconfigure(1, weight=1) # Make bottom area (Node Management) expandable
+        self.update_frame = ttk.Frame(self.notebook, padding="15", style='TFrame'); self.update_frame.columnconfigure(0, weight=1); self.update_frame.rowconfigure(1, weight=1) # Make bottom area (Version & Node Management) expandable
         self.notebook.add(self.update_frame, text=' 更新管理 / Update Management ')
 
         update_current_row = 0
@@ -726,14 +737,18 @@ class ComLauncherApp:
 
         self.refresh_nodes_button = ttk.Button(nodes_control_frame, text="刷新节点列表", style="TabAccent.TButton", command=self._queue_node_list_refresh) # Call the queueing method
         self.refresh_nodes_button.pack(side=tk.LEFT, padx=5)
-        self.switch_install_node_button = ttk.Button(nodes_control_frame, text="切换/安装选中版本", style="TabAccent.TButton", command=self._queue_node_switch_install) # Call the queueing method
+        # REQUIREMENT 5: Renamed "切换/安装选择版本" to "切换版本"
+        self.switch_install_node_button = ttk.Button(nodes_control_frame, text="切换版本", style="TabAccent.TButton", command=self._queue_node_switch_install); # Call the queueing method
         self.switch_install_node_button.pack(side=tk.LEFT, padx=5)
+        # REQUIREMENT 5: Add "卸载节点" button
+        self.uninstall_node_button = ttk.Button(nodes_control_frame, text="卸载节点", style="TabAccent.TButton", command=self._queue_node_uninstall) # Call the queueing method
+        self.uninstall_node_button.pack(side=tk.LEFT, padx=5)
         # REQUIREMENT 5: Add "更新全部" button
         self.update_all_nodes_button = ttk.Button(nodes_control_frame, text="更新全部", style="TabAccent.TButton", command=self._queue_all_nodes_update) # Call the queueing method
         self.update_all_nodes_button.pack(side=tk.LEFT, padx=5)
 
 
-        # Hint Label - Updated text
+        # Hint Label - Updated text (Requirement 4)
         ttk.Label(self.nodes_frame, text="列表默认显示本地 custom_nodes 目录下的全部节点。搜索时显示匹配的本地/在线节点。", style='Hint.TLabel').grid(row=1, column=0, sticky=tk.W, padx=5, pady=(0, 5), columnspan=2) # Span hint across columns
 
 
@@ -743,14 +758,18 @@ class ComLauncherApp:
         self.nodes_tree = ttk.Treeview(self.nodes_frame, columns=("name", "status", "local_id", "repo_info", "repo_url"), show="headings", style='Treeview')
         self.nodes_tree.heading("name", text="节点名称");
         self.nodes_tree.heading("status", text="状态");
-        self.nodes_tree.heading("local_id", text="本地ID"); # Renamed
-        self.nodes_tree.heading("repo_info", text="仓库信息"); # Renamed and content changed (Remote ID + Date for installed, Branch for uninstalled)
+        # REQUIREMENT 4: Renamed heading
+        self.nodes_tree.heading("local_id", text="本地ID");
+        # REQUIREMENT 4: Renamed heading and content changed
+        self.nodes_tree.heading("repo_info", text="仓库信息");
         self.nodes_tree.heading("repo_url", text="仓库地址")
         # Adjust column widths slightly
         self.nodes_tree.column("name", width=200, stretch=tk.YES); # Allow name to take more space
         self.nodes_tree.column("status", width=80, stretch=tk.NO);
-        self.nodes_tree.column("local_id", width=100, stretch=tk.NO); # Width for local ID (commit hash)
-        self.nodes_tree.column("repo_info", width=180, stretch=tk.NO); # Increased width for remote info
+        # REQUIREMENT 4: Width for local ID (short commit hash)
+        self.nodes_tree.column("local_id", width=100, stretch=tk.NO);
+        # REQUIREMENT 4: Increased width for remote info
+        self.nodes_tree.column("repo_info", width=180, stretch=tk.NO);
         self.nodes_tree.column("repo_url", width=300, stretch=tk.YES) # Repo URL can also expand
 
         self.nodes_tree.grid(row=2, column=0, sticky="nsew") # Treeview in column 0 of nodes_frame
@@ -766,9 +785,9 @@ class ComLauncherApp:
             self.nodes_tree.tag_configure('not_installed', foreground=FG_MUTED) # Grayish
         except tk.TclError: pass # Ignore if tag config fails
 
-        # Bind search entry to trigger refresh
-        self.nodes_search_entry.bind("<KeyRelease>", lambda event: self.refresh_node_list())
-        # Bind selection event to update switch/install button state
+        # Bind search entry to trigger refresh (Requirement 4)
+        self.nodes_search_entry.bind("<KeyRelease>", lambda event: self._queue_node_list_refresh()) # Queue refresh task
+        # Bind selection event to update switch/install and uninstall button states (Requirement 5)
         self.nodes_tree.bind("<<TreeviewSelect>>", lambda event: self._update_ui_state())
         # --- END REQUIREMENT 4 & 5 (Layout part) ---
 
@@ -845,6 +864,16 @@ class ComLauncherApp:
              tag = "api_output"
         elif source_tag == "cmd":
              tag = "cmd"
+        # Added tags for Git outputs
+        elif "[Git stdout]" in source_tag:
+             tag = "stdout"
+        elif "[Git stderr]" in source_tag:
+             tag = "stderr"
+        # Added tags for Fix script outputs
+        elif "[Fix stdout]" in source_tag:
+             tag = "stdout"
+        elif "[Fix stderr]" in source_tag:
+             tag = "stderr"
 
 
         text_widget.insert(tk.END, line, (tag,));
@@ -855,8 +884,8 @@ class ComLauncherApp:
     def log_to_gui(self, target, message, tag="info"):
          """Adds a message to the appropriate output queue."""
          if not message.endswith('\n'): message += '\n'
-         # Route all standard output (ComfyUI, Launcher, Git) to main_output_text queue
-         if target in ("ComfyUI", "Launcher", "Git", "Update"): # Added Update tag
+         # Route all standard output (ComfyUI, Launcher, Git, Fix) to main_output_text queue
+         if target in ("ComfyUI", "Launcher", "Git", "Update", "Fix"): # Added Fix tag
              queue = self.comfyui_output_queue
              queue.put((f"[{target} {tag.upper()}]", message)) # Put message in queue
          elif target == "ErrorAnalysis": # New target for error analysis log - goes to separate widget
@@ -893,7 +922,7 @@ class ComLauncherApp:
         """Reads lines from a process stream and puts them into a queue."""
         # Only handle ComfyUI ready marker for the ComfyUI stream
         is_comfyui_stream = (stream_name == "[ComfyUI]") or (stream_name == "[ComfyUI ERR]")
-        # marker_sent = False if is_comfyui_stream else True # Only check marker for ComfyUI streams - this is managed by self.comfyui_ready_marker_sent now
+        # marker_sent is managed by self.comfyui_ready_marker_sent now
 
         api_port = self.config.get("comfyui_api_port", DEFAULT_COMFYUI_API_PORT)
         ready_str1 = f"Set up connection listening on:" # Match exact strings from ComfyUI startup
@@ -902,13 +931,10 @@ class ComLauncherApp:
         ready_strings = [ready_str1, ready_str2, ready_str3]
 
         try:
-            # Use process_stream.read(1) in a loop or process_stream.readline if output is line buffered
-            # Popen with text=True and encoding should make readline work reliably.
-            # Alternatively, manually read byte by byte if needed for unusual streams,
-            # but for standard console output, readline is better.
-            # Using iter(process_stream.readline, b'') with text=True in Popen expects '' not b''
             for line in iter(process_stream.readline, ''): # Read lines until empty string is returned (pipe closed)
                 if self.stop_event.is_set():
+                    # This loop handles multiple stream sources (ComfyUI, Git, Fix).
+                    # The stop_event should signal all reader threads.
                     print(f"[Launcher INFO] {stream_name} stream reader received stop event.")
                     break
 
@@ -942,6 +968,7 @@ class ComLauncherApp:
 
     def _is_update_task_running(self):
         """Checks if a background update task is currently running."""
+        # The flag is set/cleared by the _update_task_worker
         return self._update_task_running
 
     def _validate_paths_for_execution(self, check_comfyui=True, check_git=False, show_error=True):
@@ -1057,11 +1084,13 @@ class ComLauncherApp:
 
             comfyui_cmd_list = base_cmd + self.comfyui_base_args # Use updated args
             # Log command with quotes around executable and script paths for clarity
-            cmd_log_list = [f'"{comfyui_cmd_list[0]}"', "-s", "-u", f'"{comfyui_cmd_list[2]}"'] + comfyui_cmd_list[3:]
+            # Use shlex.quote for robust quoting
+            cmd_log_list = [shlex.quote(arg) for arg in comfyui_cmd_list]
             cmd_log_str = ' '.join(cmd_log_list)
 
+
             self.log_to_gui("ComfyUI", f"最终参数 / Final Arguments: {' '.join(self.comfyui_base_args)}")
-            self.log_to_gui("ComfyUI", f"完整命令 / Full Command: {cmd_log_str}")
+            self.log_to_gui("ComfyUI", f"完整命令 / Full Command: {cmd_log_str}", "cmd")
 
             comfy_env = os.environ.copy()
             # Fix UnicodeEncodeError by forcing UTF-8 output encoding / 通过强制 UTF-8 输出编码修复 UnicodeEncodeError
@@ -1214,7 +1243,6 @@ class ComLauncherApp:
 
     # Renamed _run_all_services to _run_comfyui_service as only ComfyUI is started
     # This method is slightly misleading now as _start_comfyui_service is the main one
-    # Retained for compatibility but _start_comfyui_service does the actual work
     # This method is no longer called, removed it from the UI command.
     # def _run_comfyui_service(self):
     #     """Internal method to start ComfyUI service. (Helper, actual start is in _start_comfyui_service)."""
@@ -1263,8 +1291,7 @@ class ComLauncherApp:
         git_exe = self.git_exe_path_var.get()
         if not git_exe or not os.path.isfile(git_exe):
              err_msg = f"Git 可执行文件路径未配置或无效: {git_exe}"
-             # log_to_gui is used within refresh functions, so we don't log here to avoid double logging on error
-             # self.log_to_gui("Git", err_msg, "error")
+             self.log_to_gui("Git", err_msg, "error") # Log Git path error
              return "", err_msg, 127 # Indicate error if git path is bad
 
         # Prepend the git executable to the command list
@@ -1274,6 +1301,11 @@ class ComLauncherApp:
         git_env = os.environ.copy()
         git_env['PYTHONIOENCODING'] = 'utf-8'
 
+        # Ensure cwd exists
+        if not os.path.isdir(cwd):
+             err_msg = f"Git 命令工作目录不存在或无效: {cwd}"
+             self.log_to_gui("Git", err_msg, "error")
+             return "", err_msg, 1 # Generic error code
 
         try:
             # Log the command being executed
@@ -1284,60 +1316,7 @@ class ComLauncherApp:
             self.log_to_gui("Git", f"执行: {cmd_log_str}", "cmd")
             self.log_to_gui("Git", f"工作目录: {cwd}", "cmd")
 
-            # Run the command
-            # Use separate threads for reading pipes to prevent deadlock on Windows
-            process = subprocess.Popen(
-                full_cmd,
-                cwd=cwd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                # bufsize=0, # Not needed with separate threads and text=True
-                text=True, # Decode stdout/stderr as text
-                encoding='utf-8', # Explicitly use utf-8 for decoding
-                errors='replace', # Replace characters that can't be decoded
-                startupinfo=None,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
-                env=git_env # Use the modified environment
-            )
 
-            # Use the single ComfyUI output queue for all subprocess output
-            # Prefix with "[Git stdout]" or "[Git stderr]"
-            stdout_thread = threading.Thread(target=self.stream_output, args=(process.stdout, self.comfyui_output_queue, "[Git stdout]"), daemon=True)
-            stderr_thread = threading.Thread(target=self.stream_output, args=(process.stderr, self.comfyui_output_queue, "[Git stderr]"), daemon=True)
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Wait for the process to complete with timeout
-            try:
-                returncode = process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                self.log_to_gui("Git", f"Git 命令超时 ({timeout} 秒), 进程被终止。", "error")
-                try: process.kill()
-                except OSError: pass # Ignore if already terminated
-                returncode = 124 # Timeout code
-
-            # Wait for the reader threads to finish (they should finish quickly after process ends)
-            stdout_thread.join(timeout=5) # Give readers a moment
-            stderr_thread.join(timeout=5)
-
-            # No need to collect output from queues here, stream_output sends it to the main queue.
-            # We only need the return code and potential lingering error message from stderr pipe if threads didn't catch it all.
-            # For simplicity and reliability, we'll just return empty strings for stdout/stderr here
-            # and rely on the queue processing for displaying output.
-            # However, the calling functions might need the output string for logic (e.g., parsing commit IDs).
-            # Let's re-evaluate: returning the collected output is necessary for parsing.
-            # The stream_output is for *displaying* to the GUI. The caller needs the *string* result.
-
-            # Let's re-implement output collection while still streaming to GUI queue
-            stdout_output_list = []
-            stderr_output_list = []
-
-            # Re-run the command, but capture output instead of streaming directly
-            # This means the _run_git_command needs to change, or we need a different helper for logic vs display.
-            # Let's modify this helper to capture and return, and rely on log_to_gui for display.
-
-            # --- Revised _run_git_command to capture and log ---
             process = subprocess.Popen(
                 full_cmd,
                 cwd=cwd,
@@ -1353,7 +1332,7 @@ class ComLauncherApp:
             stderr_buffer = []
 
             # Read stdout and stderr line by line and log to GUI, also buffer
-            def read_pipe(pipe, buffer, source_name):
+            def read_pipe_and_buffer(pipe, buffer, source_name):
                  try:
                       for line in iter(pipe.readline, ''):
                            self.log_to_gui("Git", line.strip(), source_name) # Log to GUI (strip newline for log_to_gui)
@@ -1364,8 +1343,8 @@ class ComLauncherApp:
                       try: pipe.close()
                       except Exception: pass
 
-            stdout_thread = threading.Thread(target=read_pipe, args=(process.stdout, stdout_buffer, "[Git stdout]"), daemon=True)
-            stderr_thread = threading.Thread(target=read_pipe, args=(process.stderr, stderr_buffer, "[Git stderr]"), daemon=True)
+            stdout_thread = threading.Thread(target=read_pipe_and_buffer, args=(process.stdout, stdout_buffer, "[Git stdout]"), daemon=True)
+            stderr_thread = threading.Thread(target=read_pipe_and_buffer, args=(process.stderr, stderr_buffer, "[Git stderr]"), daemon=True)
 
             stdout_thread.start()
             stderr_thread.start()
@@ -1396,6 +1375,8 @@ class ComLauncherApp:
             return stdout_output, stderr_output, returncode
 
         except FileNotFoundError:
+            # This case is handled by the initial git_exe path check
+            # Kept here as a safeguard
             error_msg = f"Git 可执行文件未找到: {git_exe}"
             self.log_to_gui("Git", error_msg, "error")
             return "", error_msg, 127 # Standard Linux exit code for command not found
@@ -1413,19 +1394,26 @@ class ComLauncherApp:
                 task_func, task_args, task_kwargs = self.update_task_queue.get()
                 self._update_task_running = True # Set flag
                 self.root.after(0, self._update_ui_state) # Update UI state to show busy/disabled buttons
+                self.log_to_gui("Launcher", f"执行更新任务: {task_func.__name__}", "info")
+
 
                 try:
                     # Execute the task function
                     task_func(*task_args, **task_kwargs)
+                except threading.ThreadExit:
+                     # Handle specific ThreadExit exception for graceful stop
+                     self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 被取消。", "warn")
                 except Exception as e:
-                    print(f"[Launcher ERROR] Update task failed: {e}", exc_info=True)
-                    self.log_to_gui("Launcher", f"更新任务执行失败: {e}", "error")
+                    print(f"[Launcher ERROR] Update task '{task_func.__name__}' failed: {e}", exc_info=True)
+                    self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 执行失败: {e}", "error")
+                    # Show error box in GUI thread
                     self.root.after(0, lambda msg=str(e): messagebox.showerror("更新任务失败 / Update Task Failed", f"更新任务执行失败:\n{msg}", parent=self.root))
 
                 finally:
                     self.update_task_queue.task_done() # Mark task as done
                     self._update_task_running = False # Clear flag
                     self.stop_event.clear() # Reset stop event for the next task
+                    self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 完成。", "info")
                     self.root.after(0, self._update_ui_state) # Update UI state to idle/enabled buttons
 
 
@@ -1442,6 +1430,11 @@ class ComLauncherApp:
         """Queues the main body version refresh task."""
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中，无法刷新本体版本。", "warn"); return
+        # Validate Git path before queuing Git tasks
+        if not self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=True):
+             self.log_to_gui("Update", "无法刷新本体版本: Git 路径配置无效。", "error")
+             return
+
         self.log_to_gui("Launcher", "将刷新本体版本任务添加到队列...", "info")
         self.update_task_queue.put((self.refresh_main_body_versions, [], {})) # Add task to queue
         self.root.after(0, self._update_ui_state) # Update UI state immediately
@@ -1461,82 +1454,77 @@ class ComLauncherApp:
         if not version_data or len(version_data) < 4:
              self.log_to_gui("Update", "无法获取选中的本体版本数据。", "error")
              messagebox.showerror("数据错误", "无法获取选中的本体版本数据，请刷新列表。", parent=self.root)
+             self._update_ui_state() # Ensure UI state updates on error
              return
 
-        selected_version_name = version_data[0] # e.g., tag@v1.2.3, branch@main
-        selected_commit_id_short = version_data[1] # Short commit ID displayed
+        # Get the displayed short ID from the Treeview (column index 1)
+        selected_commit_id_short = version_data[1]
+        selected_version_display = version_data[0] # Version type@name
 
-        # We need the full commit ID for checkout. Find it from stored remote_main_body_versions
+
+        # Find the full commit ID from the stored remote_main_body_versions
         full_commit_id = None
         for ver in self.remote_main_body_versions:
-            # Check if the displayed short ID matches the beginning of the full ID
             if ver["commit_id"].startswith(selected_commit_id_short):
                  full_commit_id = ver["commit_id"]
                  break
 
         if not full_commit_id:
-             # Fallback: try to get the full ID from the short one using git rev-parse
+             # Fallback: If for some reason the short ID isn't found in stored data,
+             # try to get the full ID from the short one using git rev-parse HEAD
              comfyui_dir = self.comfyui_dir_var.get()
              if comfyui_dir and os.path.isdir(comfyui_dir) and os.path.isdir(os.path.join(comfyui_dir, ".git")) and self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False):
-                  stdout, stderr, returncode = self._run_git_command(["rev-parse", selected_commit_id_short], cwd=comfyui_dir, timeout=5)
-                  if returncode == 0 and stdout:
-                       full_commit_id = stdout.strip()
-                       self.log_to_gui("Update", f"通过 git rev-parse 获取到完整提交 ID: {full_commit_id[:8]}", "info")
-                  else:
-                       self.log_to_gui("Update", f"无法解析选中的版本 '{selected_version_name}' 的完整提交 ID (git rev-parse 失败): {stderr if stderr else '未知错误'}", "error")
-                       messagebox.showerror("版本错误 / Version Error", f"无法解析选中的版本 '{selected_version_name}' 的完整提交 ID。", parent=self.root)
-                       self._update_ui_state()
-                       return
-             else:
-                  self.log_to_gui("Update", "无法解析选中的本体版本，Git或目录路径配置无效。", "error")
-                  messagebox.showerror("配置或Git错误", "无法解析选中的本体版本，请检查Git路径和ComfyUI目录配置。", parent=self.root)
-                  self._update_ui_state()
-                  return
+                  # Need to run this check in the worker thread potentially? No, just validate paths here.
+                  # Getting the full ID from short via git is a quick operation usually, could do it here or queue.
+                  # Let's queue it as part of the activation task to keep UI responsive during path validation too.
+                  # Or, better, just queue the task with the *short* ID and let the task resolve the full ID.
+                  # This makes the queuing part faster.
 
+                  # Re-design: Pass short ID and let the task resolve full ID if needed.
+                  pass # Full ID resolution moved to task
 
-        main_repo_url = self.main_repo_url_var.get()
-        comfyui_dir = self.comfyui_dir_var.get()
-
-        # Validate paths before proceeding
+        # Validate paths before proceeding with the task
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=True, show_error=True):
-             self.log_to_gui("Update", "无法激活本体版本: 路径配置无效。/ Cannot activate main body version: Path configuration invalid.", "error")
+             self.log_to_gui("Update", "无法激活本体版本: 路径配置无效。", "error")
              return
         # Check if the ComfyUI dir is a git repo
+        comfyui_dir = self.comfyui_dir_var.get()
         if not os.path.isdir(comfyui_dir) or not os.path.isdir(os.path.join(comfyui_dir, ".git")):
              self.log_to_gui("Update", f"'{comfyui_dir}' 不是一个 Git 仓库，无法激活版本。", "error")
              messagebox.showerror("Git 仓库错误 / Git Repository Error", f"ComfyUI 安装目录不是一个有效的 Git 仓库:\n{comfyui_dir}\n请确保该目录是 Git 克隆的。", parent=self.root)
-             self._update_ui_state()
+             self._update_ui_state() # Ensure UI updates after error
              return
 
-
-        confirm = messagebox.askyesno("确认激活 / Confirm Activation", f"确定要下载并覆盖安装本体版本 '{selected_version_name}' (提交ID: {full_commit_id[:8]}) 吗？\n此操作会修改 '{comfyui_dir}' 目录。\n\n警告: 激活不同版本可能导致当前节点不兼容，请谨慎操作！", parent=self.root)
+        # Confirm activation
+        confirm = messagebox.askyesno("确认激活 / Confirm Activation", f"确定要下载并覆盖安装本体版本 '{selected_version_display}' (提交ID: {selected_commit_id_short}) 吗？\n此操作会修改 '{comfyui_dir}' 目录。\n\n警告: 激活不同版本可能导致当前节点不兼容，请谨慎操作！", parent=self.root)
         if not confirm: return
 
-        self.log_to_gui("Launcher", f"将激活本体版本 '{selected_version_name}' (提交ID: {full_commit_id[:8]}) 任务添加到队列...", "info")
-        # Queue the activation task
-        self.update_task_queue.put((self._activate_main_body_version_task, [comfyui_dir, full_commit_id], {}))
+        self.log_to_gui("Launcher", f"将激活本体版本 '{selected_version_display}' (提交ID: {selected_commit_id_short}) 任务添加到队列...", "info")
+        # Queue the activation task, passing the short commit ID
+        self.update_task_queue.put((self._activate_main_body_version_task, [comfyui_dir, selected_commit_id_short], {}))
         self.root.after(0, self._update_ui_state) # Update UI state immediately
 
 
     def _queue_node_list_refresh(self):
         """Queues the node list refresh task."""
-        # No need to check if update task is running for simple list refresh (unless it involves network/git)
-        # The current implementation does involve git, so we should queue it.
+        # We need git path to get remote info, but local scan works without it.
+        # Let's queue the task and let the task handle partial refresh if git is missing.
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中，无法刷新节点列表。", "warn"); return
+
         self.log_to_gui("Launcher", "将刷新节点列表任务添加到队列...", "info")
         self.update_task_queue.put((self.refresh_node_list, [], {})) # Add task to queue
         self.root.after(0, self._update_ui_state) # Update UI state immediately
 
 
     def _queue_node_switch_install(self):
-        """Queues the node switch/install task."""
+        """Queues the node switch/install task or node history fetch task."""
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中，无法切换/安装节点。", "warn"); return
 
         selected_item = self.nodes_tree.focus()
         if not selected_item:
-            messagebox.showwarning("未选择节点 / No Node Selected", "请从列表中选择一个要切换/安装的节点。", parent=self.root)
+            messagebox.showwarning("未选择节点 / No Node Selected", "请从列表中选择一个要操作的节点。", parent=self.root)
             return
 
         # Get data from the 5-column treeview item
@@ -1545,66 +1533,86 @@ class ComLauncherApp:
         if not node_data or len(node_data) < 5:
              self.log_to_gui("Update", "无法获取选中的节点数据。", "error")
              messagebox.showerror("数据错误", "无法获取选中的节点数据，请刷新列表。", parent=self.root)
+             self._update_ui_state() # Ensure UI updates on error
              return
 
         node_name = node_data[0]
         node_status = node_data[1]
-        local_id = node_data[2] # Local commit ID string from treeview
-        repo_info = node_data[3] # Remote info string from treeview
-        repo_url = node_data[4] # Repo URL from treeview
+        # local_id = node_data[2] # Short local commit ID
+        repo_info = node_data[3] # Remote info string
+        repo_url = node_data[4] # Repo URL
 
-        git_exe = self.git_exe_path_var.get()
         comfyui_nodes_dir = self.comfyui_nodes_dir
 
         # Validate paths before proceeding
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=True, show_error=True):
-             self.log_to_gui("Update", "无法切换/安装节点版本: 路径配置无效。/ Cannot switch/install node version: Path configuration invalid.", "error")
+             self.log_to_gui("Update", "无法切换/安装节点: 路径配置无效。", "error")
              return
         # Ensure nodes directory exists before attempting git operations within it
         if not comfyui_nodes_dir or not os.path.isdir(comfyui_nodes_dir):
              self.log_to_gui("Update", f"无法切换/安装节点: ComfyUI custom_nodes 目录未找到或无效 ({comfyui_nodes_dir})。", "error")
              messagebox.showerror("目录错误 / Directory Error", f"ComfyUI custom_nodes 目录未找到或无效:\n{comfyui_nodes_dir}\n请检查设置中的 ComfyUI 安装目录。", parent=self.root)
+             self._update_ui_state() # Ensure UI updates on error
              return
 
         # Cannot install/switch if no valid repo URL is known
-        if not repo_url or repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装"):
-             self.log_to_gui("Update", f"无法切换/安装节点 '{node_name}': 该节点无有效的仓库地址信息。/ Cannot switch/install node '{node_name}': This node has no valid repository URL information.", "error")
+        if not repo_url or repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A"):
+             self.log_to_gui("Update", f"无法切换/安装节点 '{node_name}': 该节点无有效的仓库地址信息。", "error")
              messagebox.showerror("节点信息缺失 / Missing Node Info", f"节点 '{node_name}' 无有效的仓库地址，无法进行版本切换或安装。", parent=self.root)
+             self._update_ui_state() # Ensure UI updates on error
              return
 
         # Determine the node's expected installation path based on repo URL
+        # This derivation needs to be consistent with how _refresh_node_list finds installed nodes.
+        # It's usually the last segment of the repo URL without .git
         repo_name_from_url = repo_url.split('/')[-1]
         if repo_name_from_url.lower().endswith('.git'):
              repo_name_from_url = repo_name_from_url[:-4]
         node_install_path = os.path.normpath(os.path.join(comfyui_nodes_dir, repo_name_from_url))
 
-        # Determine target version based on what's displayed in the "仓库信息" column (Remote Info)
-        # For installed nodes, repo_info is "branch_name (YYYY-MM-DD)". We need the branch name.
-        # For uninstalled nodes, repo_info is just the branch name from the online config.
-        # Take the part before the date if present, otherwise the whole string.
-        target_ref = repo_info.split(' ')[0].strip()
-        if target_ref in ("未知远程", "N/A", "信息获取失败"):
-             # Fallback to a default branch if remote info is not useful
-             target_ref = "main" # Or "master"
-             self.log_to_gui("Update", f"无法解析远程版本信息 '{repo_info}'，使用默认目标分支 '{target_ref}'。", "warn")
+        # Check if the node directory exists and is a git repo to determine status precisely
+        # Relying on the treeview status is generally fine, but double-checking here is safer.
+        is_installed_and_git = os.path.isdir(node_install_path) and os.path.isdir(os.path.join(node_install_path, ".git"))
 
-        action = "安装" if node_status != "已安装" else "切换版本到"
-        confirm_msg = f"确定要对节点 '{node_name}' 执行 '{action}' 操作吗？\n" \
-                      f"仓库地址: {repo_url}\n" \
-                      f"目标版本/分支: {target_ref}\n" \
-                      f"操作目录: {node_install_path}\n\n"
+        if not is_installed_and_git:
+             # --- Node is not installed or not a git repo (e.g. manually copied) ---
+             # Treat as an installation scenario (clone)
+             action = "安装"
+             # Determine the target branch/version for installation from the online config info (repo_info)
+             # This is the part before " (未安装)" or " (信息获取失败)"
+             target_ref_for_install = repo_info.split(' ')[0].strip()
+             if target_ref_for_install in ("未知远程", "N/A", "信息获取失败", "未安装"):
+                 # Fallback to a default branch if online info is not useful
+                 target_ref_for_install = "main" # Or "master"
+                 self.log_to_gui("Update", f"无法解析安装目标引用 '{repo_info}'，使用默认目标分支 '{target_ref_for_install}' 进行克隆。", "warn")
 
-        if node_status != "已安装":
-             confirm_msg += "此操作将在 custom_nodes 目录下克隆仓库。"
+             confirm_msg = f"确定要安装节点 '{node_name}' 吗？\n" \
+                           f"仓库地址: {repo_url}\n" \
+                           f"克隆分支: {target_ref_for_install}\n" \
+                           f"目标目录: {node_install_path}\n\n" \
+                           f"此操作将在 custom_nodes 目录下克隆仓库。\n确认前请确保 ComfyUI 已停止运行。"
+
+             confirm = messagebox.askyesno("确认安装 / Confirm Installation", confirm_msg, parent=self.root)
+             if not confirm: return
+
+             self.log_to_gui("Launcher", f"将安装节点 '{node_name}' (目标引用: {target_ref_for_install}) 任务添加到队列...", "info")
+             # Queue the installation task (_switch_install_node_task handles both clone and checkout/pull)
+             # Pass the target ref to the task
+             self.update_task_queue.put((self._switch_install_node_task, [node_name, node_install_path, repo_url, target_ref_for_install], {}))
+
         else:
-             confirm_msg += "此操作将修改节点目录内容。\n警告：切换版本可能需要重新安装依赖，且可能丢失本地修改！\n建议在切换前备份节点目录。\n确认前请确保 ComfyUI 已停止运行。"
+             # --- Node is installed and is a Git repo ---
+             # Show the version history modal (Requirement 5)
+             action = "切换版本"
+             confirm_msg = f"确定要获取节点 '{node_name}' 的版本历史并切换吗？\n\n此操作将获取仓库 '{repo_url}' 的版本信息。"
+             confirm = messagebox.askyesno("确认切换版本 / Confirm Switch Version", confirm_msg, parent=self.root)
+             if not confirm: return
 
-        confirm = messagebox.askyesno("确认操作 / Confirm Action", confirm_msg, parent=self.root)
-        if not confirm: return
+             self.log_to_gui("Launcher", f"将获取节点 '{node_name}' 版本历史任务添加到队列...", "info")
+             # Queue the task to fetch history, which will then show the modal
+             self.update_task_queue.put((self._queue_node_history_fetch, [node_name, node_install_path], {}))
 
-        self.log_to_gui("Launcher", f"将对节点 '{node_name}' 执行 '{action}' (目标引用: {target_ref}) 任务添加到队列...", "info")
-        # Queue the switch/install task
-        self.update_task_queue.put((self._switch_install_node_task, [node_name, node_status, node_install_path, repo_url, target_ref], {}))
+
         self.root.after(0, self._update_ui_state) # Update UI state immediately
 
     # REQUIREMENT 5: Queue All Nodes Update Task
@@ -1625,9 +1633,10 @@ class ComLauncherApp:
              return
 
         # Filter for only installed git nodes that have a remote URL
+        # Use the self.local_nodes_only list which contains detailed info from the last refresh
         nodes_to_update = [
             node for node in self.local_nodes_only
-            if node.get("is_git") and node.get("repo_url") and "无法获取远程 URL" not in node.get("repo_url")
+            if node.get("is_git") and node.get("repo_url") and node.get("repo_url") not in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A")
         ]
 
         if not nodes_to_update:
@@ -1643,9 +1652,57 @@ class ComLauncherApp:
         self.update_task_queue.put((self._update_all_nodes_task, [nodes_to_update], {}))
         self.root.after(0, self._update_ui_state) # Update UI state immediately
 
+    # REQUIREMENT 5: Queue Uninstall Node Task
+    def _queue_node_uninstall(self):
+        """Queues the node uninstall task."""
+        if self._is_update_task_running():
+             self.log_to_gui("Launcher", "更新任务正在进行中，无法卸载节点。", "warn"); return
 
-    # --- Initial Data Loading Task ---
-    # REQUIREMENT 1: Function to run initial data loading in background
+        selected_item = self.nodes_tree.focus()
+        if not selected_item:
+            messagebox.showwarning("未选择节点 / No Node Selected", "请从列表中选择一个要卸载的节点。", parent=self.root)
+            return
+
+        node_data = self.nodes_tree.item(selected_item, 'values')
+        if not node_data or len(node_data) < 5:
+             self.log_to_gui("Update", "无法获取选中的节点数据。", "error")
+             messagebox.showerror("数据错误", "无法获取选中的节点数据，请刷新列表。", parent=self.root)
+             self._update_ui_state() # Ensure UI updates on error
+             return
+
+        node_name = node_data[0]
+        node_status = node_data[1]
+
+        # Can only uninstall "已安装" nodes
+        if node_status != "已安装":
+             self.log_to_gui("Update", f"节点 '{node_name}' 未安装，无需卸载。", "warn")
+             messagebox.showwarning("节点未安装 / Node Not Installed", f"节点 '{node_name}' 未安装。", parent=self.root)
+             return
+
+        comfyui_nodes_dir = self.comfyui_nodes_dir
+        node_install_path = os.path.normpath(os.path.join(comfyui_nodes_dir, node_name)) # Derive path
+
+        # Validate path
+        if not os.path.isdir(node_install_path):
+             self.log_to_gui("Update", f"节点目录不存在或无效: {node_install_path}", "error")
+             messagebox.showerror("目录错误 / Directory Error", f"节点目录不存在或无效:\n{node_install_path}", parent=self.root)
+             self._update_ui_state()
+             return
+
+        confirm = messagebox.askyesno(
+             "确认卸载节点 / Confirm Uninstall Node",
+             f"确定要永久删除节点 '{node_name}' 及其目录 '{node_install_path}' 吗？\n此操作不可撤销。\n\n确认前请确保 ComfyUI 已停止运行。",
+             parent=self.root
+        )
+        if not confirm: return
+
+        self.log_to_gui("Launcher", f"将卸载节点 '{node_name}' 任务添加到队列...", "info")
+        # Queue the uninstall task
+        self.update_task_queue.put((self._node_uninstall_task, [node_name, node_install_path], {}))
+        self.root.after(0, self._update_ui_state) # Update UI state immediately
+
+
+    # --- Initial Data Loading Task (Requirement 1) ---
     def start_initial_data_load(self):
          """Starts the initial data loading tasks (main body versions, nodes) in a background thread."""
          if self._is_update_task_running():
@@ -1653,31 +1710,36 @@ class ComLauncherApp:
               return
 
          self.log_to_gui("Launcher", "开始加载更新管理数据...", "info")
+         # Queue the initial background task runner
          self.update_task_queue.put((self._run_initial_background_tasks, [], {}))
          self.root.after(0, self._update_ui_state) # Update UI to show busy state
 
 
     def _run_initial_background_tasks(self):
-         """Executes the initial data loading tasks."""
+         """Executes the initial data loading tasks. Runs in worker thread."""
          self.log_to_gui("Launcher", "执行后台数据加载 (本体版本和节点列表)...", "info")
          # Ensure Git path is valid before attempting Git operations
-         if not self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False):
-             self.log_to_gui("Launcher", "Git 路径无效，跳过本体版本和节点列表加载。", "error")
-             # Still attempt node list refresh to at least show local non-git nodes
-             # self.root.after(0, self.refresh_node_list) # Refresh node list (will only show non-git)
-             # But the main_body_versions won't be refreshed accurately.
-             self.root.after(0, self._update_ui_state) # Update UI state after failed validation attempt
-             return
+         git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
+
+         if not git_path_ok:
+             self.log_to_gui("Launcher", "Git 路径无效，本体版本列表加载将受限。", "warn")
+             # Node list refresh will still run and show local non-git nodes.
+             pass # Continue to node list refresh
 
 
-         # Refresh main body versions first
+         # Refresh main body versions first (will only work fully if git_path_ok)
          self.refresh_main_body_versions() # This is now running in the worker thread
 
-         # Then refresh node list
+         # Check for stop event after main body refresh
+         if self.stop_event.is_set():
+              self.log_to_gui("Launcher", "后台数据加载任务已取消。", "warn"); return
+
+
+         # Then refresh node list (will work partially or fully based on git_path_ok)
          self.refresh_node_list() # This is also running in the worker thread
 
          self.log_to_gui("Launcher", "后台数据加载完成。", "info")
-         self.root.after(0, self._update_ui_state) # Update UI state when done
+         # UI state update is handled by the worker thread's finally block
 
 
     # REQUIREMENT 2: Accurate Main Body Versions (Modified to run in task queue)
@@ -1689,101 +1751,126 @@ class ComLauncherApp:
 
         main_repo_url = self.main_repo_url_var.get()
         comfyui_dir = self.comfyui_dir_var.get()
+        git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
 
-        # Validation is already done in _queue_main_body_refresh
-        # if not self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False): ... return
-        # if not comfyui_dir or not os.path.isdir(comfyui_dir) or not os.path.isdir(os.path.join(comfyui_dir, ".git")): ... return
-        # if not main_repo_url: ... return
-
-        self.log_to_gui("Update", f"尝试从 {main_repo_url} 刷新本体版本列表... / Attempting to refresh main body version list from {main_repo_url}...", "info")
         # Clear existing list in the GUI thread
         self.root.after(0, lambda: [self.main_body_tree.delete(item) for item in self.main_body_tree.get_children()])
+        self.remote_main_body_versions = [] # Clear stored data
 
 
         # --- Get Current Local Version ---
-        stdout, stderr, returncode = self._run_git_command(["describe", "--all", "--long", "--always"], cwd=comfyui_dir, timeout=10)
-        if returncode == 0 and stdout:
-             local_version_info = stdout.strip()
-             self.root.after(0, lambda: self.current_main_body_version_var.set(f"本地: {local_version_info}"))
-        else:
-             # Fallback to short commit hash if describe fails
-             stdout, stderr, returncode = self._run_git_command(["rev-parse", "HEAD"], cwd=comfyui_dir, timeout=10)
+        local_version_display = "读取本地版本失败"
+        if git_path_ok and comfyui_dir and os.path.isdir(comfyui_dir) and os.path.isdir(os.path.join(comfyui_dir, ".git")):
+             stdout, stderr, returncode = self._run_git_command(["describe", "--all", "--long", "--always"], cwd=comfyui_dir, timeout=10)
              if returncode == 0 and stdout:
-                 self.root.after(0, lambda: self.current_main_body_version_var.set(f"本地 Commit: {stdout.strip()[:8]}"))
+                  local_version_display = f"本地: {stdout.strip()}"
              else:
-                 self.root.after(0, lambda: self.current_main_body_version_var.set("读取本地版本失败"))
-                 self.log_to_gui("Update", f"无法获取本地本体版本信息: {stderr if stderr else '未知错误'}", "warn")
+                  # Fallback to short commit hash if describe fails
+                  stdout, stderr, returncode = self._run_git_command(["rev-parse", "HEAD"], cwd=comfyui_dir, timeout=10)
+                  if returncode == 0 and stdout:
+                      local_version_display = f"本地 Commit: {stdout.strip()[:8]}"
+                  else:
+                      self.log_to_gui("Update", f"无法获取本地本体版本信息: {stderr if stderr else '未知错误'}", "warn")
+        else:
+             if not git_path_ok: self.log_to_gui("Update", "Git 路径无效，无法获取本地本体版本信息。", "warn")
+             elif not comfyui_dir or not os.path.isdir(comfyui_dir): self.log_to_gui("Update", f"ComfyUI 目录无效 ({comfyui_dir if comfyui_dir else '未配置'})，无法获取本地本体版本信息。", "warn")
+             elif comfyui_dir and not os.path.isdir(os.path.join(comfyui_dir, ".git")): self.log_to_gui("Update", f"ComfyUI 目录 '{comfyui_dir}' 不是 Git 仓库，无法获取本地本体版本信息。", "warn")
+
+        # Update current version label in GUI thread
+        self.root.after(0, lambda lv=local_version_display: self.current_main_body_version_var.set(lv))
+
 
         # Check for stop event after getting local version
         if self.stop_event.is_set():
              self.log_to_gui("Update", "本体版本刷新任务已取消。", "warn"); return
 
-        # --- Fetch Remote Versions ---
-        # Fetch latest info first
-        self.log_to_gui("Update", "执行 Git fetch origin 获取远程信息...", "info")
-        stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=comfyui_dir, timeout=180) # Increased timeout
-        if returncode != 0:
-             self.log_to_gui("Update", f"Git fetch 失败: {stderr if stderr else '未知错误'}", "error")
-             self.log_to_gui("Update", "无法获取远程本体版本列表。", "error")
-             # self.root.after(0, self._update_ui_state) # Update state via finally
-             return
-        self.log_to_gui("Update", "Git fetch 完成。", "info")
-
-        # Check for stop event after fetch
-        if self.stop_event.is_set():
-             self.log_to_gui("Update", "本体版本刷新任务已取消。", "warn"); return
-
-
-        # Get list of remote branches with commit info
-        # Format: '%(refname:short) %(objectname) %(committerdate:iso) %(contents:subject)'
-        branches_output, branch_err, branch_rc = self._run_git_command(
-             ["for-each-ref", "refs/remotes/origin/", "--sort=-committerdate", "--format=%(refname:short) %(objectname) %(committerdate:iso) %(contents:subject)"],
-             cwd=comfyui_dir, timeout=60
-        )
-        # Get list of tags with commit info
-        # Format: '%(refname:short) %(objectname) %(taggerdate:iso) %(contents:subject)'
-        tags_output, tag_err, tag_rc = self._run_git_command(
-             ["for-each-ref", "refs/tags/", "--sort=-taggerdate", "--format=%(refname:short) %(objectname) %(taggerdate:iso) %(contents:subject)"],
-             cwd=comfyui_dir, timeout=60
-        )
-
+        # --- Fetch Remote Versions (Only if Git path and repo are valid) ---
         all_versions = []
-        # Process branches
-        if branch_rc == 0 and branches_output:
-             for line in branches_output.splitlines():
-                 parts = line.split(' ', 3) # Split into refname, commit_id, date, subject
-                 if len(parts) == 4:
-                     refname = parts[0].replace("origin/", "") # Remove origin/ prefix
-                     commit_id = parts[1]
-                     date_iso = parts[2]
-                     description = parts[3].strip()
-                     # Exclude the default "origin/HEAD -> origin/master" entry
-                     if "->" not in refname:
-                          all_versions.append({"type": "branch", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
-         # Process tags
-        if tag_rc == 0 and tags_output:
-             for line in tags_output.splitlines():
-                 parts = line.split(' ', 3) # Split into refname, commit_id, date, subject
-                 if len(parts) == 4:
-                     refname = parts[0] # Tag name includes refs/tags/
-                     commit_id = parts[1] # Object name is the commit ID the tag points to
-                     date_iso = parts[2]
-                     description = parts[3].strip()
-                     # Clean up tag name if it includes refs/tags/
-                     if refname.startswith("refs/tags/"): refname = refname[len("refs/tags/"):]
+        if git_path_ok and comfyui_dir and os.path.isdir(comfyui_dir) and os.path.isdir(os.path.join(comfyui_dir, ".git")) and main_repo_url:
 
-                     all_versions.append({"type": "tag", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
+             self.log_to_gui("Update", f"尝试从 {main_repo_url} 刷新本体版本列表... / Attempting to refresh main body version list from {main_repo_url}...", "info")
 
-        # Sort versions, prioritize tags (newer tags first), then newer branches
-        # Using date as the primary sort key descending, type 'tag' comes before 'branch' for same date
-        all_versions.sort(key=lambda x: (x['date_iso'], x['type'] != 'tag'), reverse=True)
+             # Fetch latest info first
+             self.log_to_gui("Update", "执行 Git fetch origin 获取远程信息...", "info")
+             stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=comfyui_dir, timeout=180) # Increased timeout
+             if returncode != 0:
+                  self.log_to_gui("Update", f"Git fetch 失败: {stderr if stderr else '未知错误'}", "error")
+                  self.log_to_gui("Update", "无法获取远程本体版本列表。", "error")
+                  # Add an entry to the treeview indicating failure
+                  self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("获取失败", "", "", "无法获取远程版本信息，请检查Git路径和仓库地址。")))
+                  return # Stop here if fetch failed
+             self.log_to_gui("Update", "Git fetch 完成。", "info")
+
+             # Check for stop event after fetch
+             if self.stop_event.is_set():
+                  self.log_to_gui("Update", "本体版本刷新任务已取消。", "warn"); return
+
+             # Get list of remote branches with commit info
+             # Format: '%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)'
+             branches_output, branch_err, branch_rc = self._run_git_command(
+                  ["for-each-ref", "refs/remotes/origin/", "--sort=-committerdate", "--format=%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)"],
+                  cwd=comfyui_dir, timeout=60
+             )
+             # Get list of tags with commit info
+             # Format: '%(refname:short) %(objectname) %(taggerdate:iso-strict) %(contents:subject)'
+             tags_output, tag_err, tag_rc = self._run_git_command(
+                  ["for-each-ref", "refs/tags/", "--sort=-taggerdate", "--format=%(refname:short) %(objectname) %(taggerdate:iso-strict) %(contents:subject)"],
+                  cwd=comfyui_dir, timeout=60
+             )
+
+             # Process branches
+             if branch_rc == 0 and branches_output:
+                  for line in branches_output.splitlines():
+                      parts = line.split(' ', 3) # Split into refname, commit_id, date, subject
+                      if len(parts) == 4:
+                          refname = parts[0].replace("origin/", "") # Remove origin/ prefix
+                          commit_id = parts[1]
+                          date_iso = parts[2]
+                          description = parts[3].strip()
+                          # Exclude the default "origin/HEAD -> origin/master" entry
+                          if "->" not in refname:
+                               all_versions.append({"type": "branch", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
+             elif branch_rc != 0:
+                  self.log_to_gui("Update", f"获取远程分支列表失败: {branch_err if branch_err else '未知错误'}", "warn")
+
+             # Process tags
+             if tag_rc == 0 and tags_output:
+                  for line in tags_output.splitlines():
+                      parts = line.split(' ', 3) # Split into refname, commit_id, date, subject
+                      if len(parts) == 4:
+                          refname = parts[0] # Tag name includes refs/tags/
+                          commit_id = parts[1] # Object name is the commit ID the tag points to
+                          date_iso = parts[2]
+                          description = parts[3].strip()
+                          # Clean up tag name if it includes refs/tags/
+                          if refname.startswith("refs/tags/"): refname = refname[len("refs/tags/"):]
+
+                          all_versions.append({"type": "tag", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
+             elif tag_rc != 0:
+                  self.log_to_gui("Update", f"获取远程标签列表失败: {tag_err if tag_err else '未知错误'}", "warn")
+
+             # Sort versions, prioritize tags (newer tags first), then newer branches
+             # Using date as the primary sort key descending, type 'tag' comes before 'branch' for same date
+             all_versions.sort(key=lambda x: (x['date_iso'], x['type'] != 'tag'), reverse=True)
+
+        else:
+             if not main_repo_url: self.log_to_gui("Update", "本体仓库地址未设置，无法获取远程版本信息。", "warn")
+             elif not git_path_ok: self.log_to_gui("Update", "Git 路径无效，无法获取远程本体版本信息。", "warn")
+             elif not comfyui_dir or not os.path.isdir(comfyui_dir): self.log_to_gui("Update", f"ComfyUI 目录无效 ({comfyui_dir if comfyui_dir else '未配置'})，无法获取远程本体版本信息。", "warn")
+             elif comfyui_dir and not os.path.isdir(os.path.join(comfyui_dir, ".git")): self.log_to_gui("Update", f"ComfyUI 目录 '{comfyui_dir}' 不是 Git 仓库，无法获取远程本体版本信息。", "warn")
+
+             # Add an entry to the treeview indicating limited/no remote info
+             self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("无远程版本信息", "", "", "请检查Git路径和仓库地址配置")))
 
 
         self.remote_main_body_versions = all_versions # Store for node version lookup
 
-        if not all_versions:
+        if not all_versions and (git_path_ok and comfyui_dir and os.path.isdir(comfyui_dir) and os.path.isdir(os.path.join(comfyui_dir, ".git")) and main_repo_url):
+             # Only log warning if git/repo is configured but no versions found
              self.log_to_gui("Update", "未从远程仓库获取到版本信息。", "warn")
-             self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("无可用版本", "", "", "无法获取远程版本信息")))
+             # Add an entry to the treeview indicating no versions found
+             self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("无可用远程版本", "", "", "远程仓库未找到版本信息")))
+
         else:
              for ver_data in all_versions:
                  # Check for stop event during insertion
@@ -1794,60 +1881,91 @@ class ComLauncherApp:
                  commit_display = ver_data["commit_id"][:8]
                  # Format date to YYYY-MM-DD, handle potential parsing errors
                  try:
-                      date_obj = datetime.fromisoformat(ver_data['date_iso'].split(' ')[0]) # Only take date part before time/timezone
+                      # Use fromisoformat for ISO 8601 date/time/timezone string
+                      date_obj = datetime.fromisoformat(ver_data['date_iso'])
                       date_display = date_obj.strftime('%Y-%m-%d')
                  except ValueError:
+                      self.log_to_gui("Update", f"本体版本日期解析失败: {ver_data['date_iso']}", "warn")
                       date_display = "无效日期"
                  description_display = ver_data["description"]
 
                  # Insert into Treeview in the GUI thread
                  self.root.after(0, lambda v=(version_display, commit_display, date_display, description_display): self.main_body_tree.insert("", tk.END, values=v))
 
-        self.log_to_gui("Update", f"本体版本列表刷新完成 (共 {len(all_versions)} 条)。/ Main body version list refreshed ({len(all_versions)} items).", "info")
+        self.log_to_gui("Update", f"本体版本列表刷新完成 (共 {len(all_versions)} 条远程版本)。/ Main body version list refreshed ({len(all_versions)} remote items).", "info")
         # UI state update is handled by the worker thread's finally block
 
     # REQUIREMENT 3: Activate Main Body Version (Modified to run in task queue)
+    # The queuing method _queue_main_body_activation is the entry point now.
+    # The actual activation logic is in _activate_main_body_version_task
     def activate_main_body_version(self):
         """Activates the selected ComfyUI main body version. Queued for worker thread."""
-        # Validation and queueing are done in _queue_main_body_activation
-        pass # The actual logic is now in _queue_main_body_activation
+        pass # Logic moved to _queue_main_body_activation
 
 
-    def _activate_main_body_version_task(self, comfyui_dir, target_commit_id):
+    def _activate_main_body_version_task(self, comfyui_dir, target_commit_id_short):
         """Task to execute git commands for activating main body version. Runs in worker thread."""
         # Check for stop event
         if self.stop_event.is_set():
              self.log_to_gui("Update", "本体版本激活任务已取消。", "warn"); return
 
-        self.log_to_gui("Update", f"正在激活本体版本 (提交ID: {target_commit_id[:8]})... / Activating main body version (Commit ID: {target_commit_id[:8]})...", "info")
+        # Resolve full commit ID from short ID if necessary (safer to do in task)
+        full_commit_id = None
+        # First, check stored data
+        for ver in self.remote_main_body_versions:
+             if ver["commit_id"].startswith(target_commit_id_short):
+                  full_commit_id = ver["commit_id"]
+                  break
+
+        # If not found in stored data, try git rev-parse (might be a local commit, or fetch missed it)
+        if not full_commit_id:
+             self.log_to_gui("Update", f"无法在缓存数据中找到短提交ID '{target_commit_id_short}'，尝试通过 git rev-parse 解析...", "info")
+             stdout, stderr, returncode = self._run_git_command(["rev-parse", target_commit_id_short], cwd=comfyui_dir, timeout=5)
+             if returncode == 0 and stdout:
+                  full_commit_id = stdout.strip()
+                  self.log_to_gui("Update", f"git rev-parse 解析到完整提交 ID: {full_commit_id[:8]}", "info")
+             else:
+                  self.log_to_gui("Update", f"无法解析提交ID '{target_commit_id_short}' 的完整ID: {stderr if stderr else '未知错误'}", "error")
+                  # Show error box in GUI thread
+                  self.root.after(0, lambda: messagebox.showerror("激活失败 / Activation Failed", f"无法解析要激活的提交ID '{target_commit_id_short}'。", parent=self.root))
+                  return # Cannot proceed without a full commit ID
+
+
+        self.log_to_gui("Update", f"正在激活本体版本 (提交ID: {full_commit_id[:8]})... / Activating main body version (Commit ID: {full_commit_id[:8]})...", "info")
 
         try:
             # 1. Ensure tracking remote is correct (Optional but good practice)
             # Check current origin URL
-            stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=comfyui_dir, timeout=10)
-            current_origin_url = stdout.strip() if returncode == 0 else ""
+            # Use try-except for remote get-url as it might not exist
+            current_origin_url = ""
+            try:
+                 stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=comfyui_dir, timeout=10)
+                 if returncode == 0: current_origin_url = stdout.strip()
+                 else: self.log_to_gui("Update", f"无法获取当前远程 origin URL: {stderr.strip() if stderr else '未知错误'}", "warn")
+            except Exception as e: self.log_to_gui("Update", f"获取当前远程 origin URL 异常: {e}", "warn")
+
             configured_origin_url = self.main_repo_url_var.get().strip()
 
-            if returncode != 0 or current_origin_url != configured_origin_url:
-                 if returncode != 0: self.log_to_gui("Update", f"无法获取当前远程 origin URL: {stderr if stderr else '未知错误'}", "warn")
+            if not current_origin_url or current_origin_url != configured_origin_url:
                  self.log_to_gui("Update", f"远程 origin URL 不匹配或无法获取 ({current_origin_url} vs {configured_origin_url})，尝试设置...", "warn")
                  # Check if origin remote exists first
                  stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=comfyui_dir, timeout=5)
                  if returncode == 0: # origin exists, just set URL
+                      self.log_to_gui("Update", f"执行 git remote set-url origin {configured_origin_url}...", "info")
                       stdout, stderr, returncode = self._run_git_command(["remote", "set-url", "origin", configured_origin_url], cwd=comfyui_dir, timeout=10)
                  else: # origin does not exist, add it
+                      self.log_to_gui("Update", f"执行 git remote add origin {configured_origin_url}...", "info")
                       stdout, stderr, returncode = self._run_git_command(["remote", "add", "origin", configured_origin_url], cwd=comfyui_dir, timeout=10)
 
                  if returncode != 0:
                       self.log_to_gui("Update", f"设置远程 URL 失败: {stderr if stderr else '未知错误'}", "error")
-                      # This is a critical failure for fetching/updating
                       raise Exception("设置远程 URL 失败")
                  self.log_to_gui("Update", "远程 origin URL 已更新/添加。", "info")
 
             # Check for stop event
-            if self.stop_event.is_set(): raise threading.ThreadExit # Use a custom exception or flag check
+            if self.stop_event.is_set(): raise threading.ThreadExit # Use ThreadExit to signal cancel
 
-            # 2. Fetch latest changes
+            # 2. Fetch latest changes to ensure target commit is available locally
             self.log_to_gui("Update", "执行 Git fetch origin...", "info")
             stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=comfyui_dir, timeout=180) # Increased timeout
             if returncode != 0:
@@ -1859,8 +1977,16 @@ class ComLauncherApp:
             if self.stop_event.is_set(): raise threading.ThreadExit
 
             # 3. Reset local changes and checkout target commit
-            self.log_to_gui("Update", f"执行 Git reset --hard {target_commit_id[:8]}...", "info")
-            stdout, stderr, returncode = self._run_git_command(["reset", "--hard", target_commit_id], cwd=comfyui_dir, timeout=60)
+            # Check if there are local changes before hard reset (optional, but good practice)
+            stdout_status, stderr_status, returncode_status = self._run_git_command(["status", "--porcelain"], cwd=comfyui_dir, timeout=10)
+            if returncode_status == 0 and stdout_status.strip():
+                 self.log_to_gui("Update", "检测到本体目录存在未提交的本地修改。", "warn")
+                 # Decide whether to block or proceed with warning
+                 # For reset --hard, it will discard local changes. User was warned in messagebox. Proceed.
+
+
+            self.log_to_gui("Update", f"执行 Git reset --hard {full_commit_id[:8]}...", "info")
+            stdout, stderr, returncode = self._run_git_command(["reset", "--hard", full_commit_id], cwd=comfyui_dir, timeout=60)
             if returncode != 0:
                  self.log_to_gui("Update", f"Git reset --hard 失败: {stderr if stderr else '未知错误'}", "error")
                  raise Exception("Git reset --hard 失败")
@@ -1884,7 +2010,7 @@ class ComLauncherApp:
             # Check if .gitmodules exists first
             if os.path.exists(os.path.join(comfyui_dir, ".gitmodules")):
                  self.log_to_gui("Update", "执行 Git submodule update...", "info")
-                 stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive"], cwd=comfyui_dir, timeout=180) # Increased timeout
+                 stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=comfyui_dir, timeout=180) # Added --force for robustness
                  if returncode != 0:
                       self.log_to_gui("Update", f"Git submodule update 失败: {stderr if stderr else '未知错误'}", "error")
                       # Continue but log error - submodule failure might not be fatal for *some* versions
@@ -1910,6 +2036,18 @@ class ComLauncherApp:
                  # Note: This is specific to PyTorch/CUDA. Might need to be configurable.
                  # Check platform and potentially installed torch/cuda versions
                  # For simplicity, include common URLs, user can edit if needed.
+                 # Use --break-system-packages if needed for system python (warn user?)
+                 if platform.system() != "Windows": # Assume venv is less common on Windows portable
+                      # Check if running in a venv by comparing python_exe with sys.executable
+                      # Simple check: if sys.prefix is not sys.base_prefix, it's likely a venv
+                      if sys.prefix == sys.base_prefix:
+                           # Not in a venv, might need --break-system-packages or --user
+                           # Prompt user or assume --user? --user is safer usually.
+                           pip_cmd.append("--user")
+                           self.log_to_gui("Update", "未检测到Python虚拟环境，使用 --user 选项安装依赖。", "warn")
+                      # else: In a venv, no extra flags needed
+
+
                  pip_cmd.extend(["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121", "--extra-index-url", "https://download.pytorch.org/whl/rocm5.7"])
 
 
@@ -1927,15 +2065,15 @@ class ComLauncherApp:
 
 
             # Success message
-            self.log_to_gui("Update", f"本体版本激活流程完成 (提交ID: {target_commit_id[:8]})。", "info")
-            self.root.after(0, lambda: messagebox.showinfo("激活完成 / Activation Complete", f"本体版本已激活到提交: {target_commit_id[:8]}", parent=self.root))
+            self.log_to_gui("Update", f"本体版本激活流程完成 (提交ID: {full_commit_id[:8]})。", "info")
+            self.root.after(0, lambda: messagebox.showinfo("激活完成 / Activation Complete", f"本体版本已激活到提交: {full_commit_id[:8]}", parent=self.root))
 
         except threading.ThreadExit:
              self.log_to_gui("Update", "本体版本激活任务已取消。", "warn")
         except Exception as e:
             error_msg = f"本体版本激活流程失败: {e}"
             self.log_to_gui("Update", error_msg, "error")
-            self.root.after(0, lambda: messagebox.showerror("激活失败 / Activation Failed", error_msg, parent=self.root))
+            self.root.after(0, lambda msg=str(e): messagebox.showerror("激活失败 / Activation Failed", msg, parent=self.root))
         finally:
             # Always refresh list and update UI state after task finishes
             self.root.after(0, self.refresh_main_body_versions) # Refresh to show activated version
@@ -1951,124 +2089,158 @@ class ComLauncherApp:
 
         node_config_url = self.node_config_url_var.get()
         comfyui_nodes_dir = self.comfyui_nodes_dir
-        # Get search term from UI variable in GUI thread
-        search_term = self.root.after(0, lambda: self.nodes_search_entry.get().strip().lower()) # Get value via after
-        # Need to wait for the result of after call if used outside GUI thread.
-        # A better approach is to get the value before queuing or pass it as arg.
-        search_term_value = self.nodes_search_entry.get().strip().lower() # Get directly as this runs in worker
+
+        # Get search term from UI variable (safe to access directly in worker thread)
+        search_term_value = self.nodes_search_entry.get().strip().lower() if hasattr(self, 'nodes_search_entry') and self.nodes_search_entry.winfo_exists() else ""
+
 
         git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
+        is_comfyui_nodes_dir_valid = comfyui_nodes_dir and os.path.isdir(comfyui_nodes_dir)
+
 
         # --- Scan Local custom_nodes directory ---
         self.local_nodes_only = [] # Reset the list of local nodes
-        if comfyui_nodes_dir and os.path.isdir(comfyui_nodes_dir):
+        if is_comfyui_nodes_dir_valid:
              self.log_to_gui("Update", f"扫描本地 custom_nodes 目录: {comfyui_nodes_dir}...", "info")
              # Check for stop event before listing directory
              if self.stop_event.is_set(): raise threading.ThreadExit
 
              try:
-                  for item_name in os.listdir(comfyui_nodes_dir):
+                  # List items and sort by name
+                  item_names = sorted(os.listdir(comfyui_nodes_dir))
+                  for item_name in item_names:
                        # Check for stop event during directory listing
                        if self.stop_event.is_set(): raise threading.ThreadExit
 
                        item_path = os.path.join(comfyui_nodes_dir, item_name)
                        if os.path.isdir(item_path):
                             node_info = {"name": item_name, "status": "已安装"}
+                            node_info["local_id"] = "N/A" # Default for non-git or error
+                            node_info["repo_info"] = "N/A" # Default for non-git or error
+                            node_info["repo_url"] = "本地安装" # Default
+                            node_info["is_git"] = False # Default
+
                             # Try to get Git info if Git executable is available and it's a git repo
                             if git_path_ok and os.path.isdir(os.path.join(item_path, ".git")):
                                  node_info["is_git"] = True
-                                 # REQUIREMENT 4: Get Local ID (short commit hash)
-                                 stdout, stderr, returncode = self._run_git_command(["rev-parse", "--short", "HEAD"], cwd=item_path, timeout=5)
-                                 node_info["local_id"] = stdout.strip() if returncode == 0 and stdout else "无法获取本地ID"
-                                 if returncode != 0:
-                                      self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的本地Commit ID: {stderr if stderr else '未知错误'}", "warn")
 
+                                 # REQUIREMENT 4: Get Local ID (short commit hash)
+                                 stdout_id, stderr_id, returncode_id = self._run_git_command(["rev-parse", "--short", "HEAD"], cwd=item_path, timeout=5)
+                                 if returncode_id == 0 and stdout_id:
+                                      node_info["local_id"] = stdout_id.strip()
+                                 else:
+                                      self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的本地Commit ID: {stderr_id.strip() if stderr_id else '未知错误'}", "warn")
 
                                  # REQUIREMENT 4: Get Remote Info ("仓库信息": Remote ID + Date or branch name)
                                  repo_info_display = "无远程跟踪分支" # Default if no upstream
-                                 remote_branch_name = None
+                                 remote_branch_name = "N/A"
                                  remote_commit_id_short = "N/A"
                                  remote_commit_date = "N/A"
                                  repo_url_str = "无法获取远程 URL"
 
                                  # Try to get the upstream tracking branch
-                                 stdout, stderr, returncode = self._run_git_command(["rev-parse", "--abbrev-ref", "@{u}"], cwd=item_path, timeout=5)
-                                 if returncode == 0 and stdout:
-                                      upstream_ref = stdout.strip() # e.g., origin/main
-                                      remote_branch_name = upstream_ref.replace("origin/", "") # Get just the branch name
+                                 stdout_upstream, stderr_upstream, returncode_upstream = self._run_git_command(["rev-parse", "--abbrev-ref", "@{u}"], cwd=item_path, timeout=5)
+                                 if returncode_upstream == 0 and stdout_upstream:
+                                      upstream_ref = stdout_upstream.strip() # e.g., origin/main
+                                      # Handle cases like HEAD is already on the upstream
+                                      if upstream_ref == "HEAD":
+                                           repo_info_display = "HEAD (无跟踪分支)"
+                                      elif upstream_ref.startswith("origin/"):
+                                           remote_branch_name = upstream_ref.replace("origin/", "") # Get just the branch name
 
-                                      # Get remote branch HEAD commit ID and Date
-                                      log_cmd = ["log", "-1", "--format=%H %ci", upstream_ref]
-                                      stdout_log, stderr_log, returncode_log = self._run_git_command(log_cmd, cwd=item_path, timeout=10)
+                                           # Get remote branch HEAD commit ID and Date
+                                           log_cmd = ["log", "-1", "--format=%H %ci", upstream_ref]
+                                           stdout_log, stderr_log, returncode_log = self._run_git_command(log_cmd, cwd=item_path, timeout=10)
 
-                                      if returncode_log == 0 and stdout_log:
-                                           log_parts = stdout_log.strip().split(' ', 1)
-                                           if len(log_parts) == 2:
-                                                full_commit_id = log_parts[0]
-                                                date_iso = log_parts[1]
-                                                remote_commit_id_short = full_commit_id[:8]
-                                                try:
-                                                     date_obj = datetime.fromisoformat(date_iso.split(' ')[0]) # Get date part
-                                                     remote_commit_date = date_obj.strftime('%Y-%m-%d')
-                                                except ValueError:
-                                                     self.log_to_gui("Update", f"节点 '{item_name}' 远程分支 '{remote_branch_name}' 日期解析失败: {date_iso}", "warn")
-                                                     remote_commit_date = "无效日期"
+                                           if returncode_log == 0 and stdout_log:
+                                                log_parts = stdout_log.strip().split(' ', 1)
+                                                if len(log_parts) == 2:
+                                                     full_commit_id_remote = log_parts[0] # Full remote commit ID
+                                                     date_iso = log_parts[1]
+                                                     remote_commit_id_short = full_commit_id_remote[:8]
+                                                     try:
+                                                          # Use fromisoformat for ISO 8601
+                                                          date_obj = datetime.fromisoformat(date_iso)
+                                                          remote_commit_date = date_obj.strftime('%Y-%m-%d')
+                                                     except ValueError:
+                                                          self.log_to_gui("Update", f"节点 '{item_name}' 远程分支 '{remote_branch_name}' 日期解析失败: {date_iso}", "warn")
+                                                          remote_commit_date = "无效日期"
 
-                                                # Format: commit_id (date)
-                                                repo_info_display = f"{remote_commit_id_short} ({remote_commit_date})"
+                                                     # Format: commit_id (date)
+                                                     repo_info_display = f"{remote_commit_id_short} ({remote_commit_date})"
+                                                     # Store full remote commit ID and branch for update logic
+                                                     node_info["remote_commit_id"] = full_commit_id_remote
+                                                     node_info["remote_branch"] = remote_branch_name
+
+                                                else:
+                                                     self.log_to_gui("Update", f"无法解析节点 '{item_name}' 远程分支 '{remote_branch_name}' 的日志格式: {stdout_log.strip()}", "warn")
+                                                     repo_info_display = f"{remote_branch_name} (日志解析失败)"
+
                                            else:
-                                                self.log_to_gui("Update", f"无法解析节点 '{item_name}' 远程分支 '{remote_branch_name}' 的日志格式: {stdout_log.strip()}", "warn")
-                                                repo_info_display = f"{remote_branch_name} (日志解析失败)"
+                                                self.log_to_gui("Update", f"无法获取节点 '{item_name}' 远程分支 '{remote_branch_name}' 的最新提交信息: {stderr_log.strip() if stderr_log else '未知错误'}", "warn")
+                                                repo_info_display = f"{remote_branch_name} (信息获取失败)"
 
+                                      # Handle other upstream types like tags if necessary, but common is origin/branch
                                       else:
-                                           self.log_to_gui("Update", f"无法获取节点 '{item_name}' 远程分支 '{remote_branch_name}' 的最新提交信息: {stderr_log if stderr_log else '未知错误'}", "warn")
-                                           repo_info_display = f"{remote_branch_name} (信息获取失败)"
+                                          self.log_to_gui("Update", f"节点 '{item_name}' 远程跟踪分支 '{upstream_ref}' 格式未知。", "warn")
+                                          repo_info_display = f"跟踪: {upstream_ref} (未知格式)"
 
-                                 elif "no upstream configured" not in stderr and "no upstream branch" not in stderr and returncode != 0:
-                                      self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的远程跟踪分支信息: {stderr if stderr else '未知错误'}", "warn")
+
+                                 elif "no upstream configured" not in (stderr_upstream.lower() if stderr_upstream else "") and \
+                                      "no upstream branch" not in (stderr_upstream.lower() if stderr_upstream else "") and \
+                                      returncode_upstream != 0:
+                                      self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的远程跟踪分支信息: {stderr_upstream.strip() if stderr_upstream else '未知错误'}", "warn")
                                       repo_info_display = "信息获取失败"
 
                                  # Get Remote URL
-                                 stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=item_path, timeout=5)
-                                 repo_url_str = stdout.strip() if returncode == 0 and stdout else "无法获取远程 URL"
-                                 if returncode != 0 and "no such remote" not in stderr.lower():
-                                     self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的远程URL: {stderr if stderr else '未知错误'}", "warn")
+                                 stdout_url, stderr_url, returncode_url = self._run_git_command(["remote", "get-url", "origin"], cwd=item_path, timeout=5)
+                                 if returncode_url == 0 and stdout_url:
+                                      repo_url_str = stdout_url.strip()
+                                 elif returncode_url != 0 and "no such remote" not in (stderr_url.lower() if stderr_url else ""):
+                                     self.log_to_gui("Update", f"无法获取节点 '{item_name}' 的远程URL: {stderr_url.strip() if stderr_url else '未知错误'}", "warn")
 
 
                                  node_info["repo_info"] = repo_info_display
                                  node_info["repo_url"] = repo_url_str
-                                 # Also store remote commit ID and date separately for Update All logic
-                                 node_info["remote_commit_id"] = full_commit_id if 'full_commit_id' in locals() else None
-                                 node_info["remote_commit_date"] = remote_commit_date
 
 
-                            else:
-                                 node_info["is_git"] = False
+                            else: # Not a git repo or git path invalid
                                  node_info["local_id"] = "N/A" # Non-git nodes have no local ID
                                  node_info["repo_info"] = "N/A" # Non-git nodes have no remote info
-                                 node_info["repo_url"] = "本地安装，无Git信息"
+                                 node_info["repo_url"] = "本地安装"
 
                             self.local_nodes_only.append(node_info)
+
                   self.log_to_gui("Update", f"本地 custom_nodes 目录扫描完成，找到 {len(self.local_nodes_only)} 个节点。", "info")
 
              except threading.ThreadExit:
                   self.log_to_gui("Update", "节点列表扫描任务已取消。", "warn"); return
              except Exception as e:
                   self.log_to_gui("Update", f"扫描本地 custom_nodes 目录时出错: {e}", "error")
+                  # Add entry indicating local scan failure
+                  self.root.after(0, lambda: self.nodes_tree.insert("", tk.END, values=("扫描失败", "错误", "N/A", "扫描本地目录时出错", "N/A")))
 
 
         else:
-             self.log_to_gui("Update", f"ComfyUI custom_nodes 目录未找到或无效 ({comfyui_nodes_dir})，跳过本地节点扫描。", "warn")
+             if not is_comfyui_nodes_dir_valid:
+                 self.log_to_gui("Update", f"ComfyUI custom_nodes 目录未找到或无效 ({comfyui_nodes_dir if comfyui_nodes_dir else '未配置'})，跳过本地节点扫描。", "warn")
+                 # Add entry indicating directory not found
+                 self.root.after(0, lambda: self.nodes_tree.insert("", tk.END, values=("本地目录无效", "错误", "N/A", "custom_nodes 目录不存在或无效", "N/A")))
+             # If git_path_ok is false, the git info part inside the loop won't run, but local scan still happens.
+             # The warning about git path is logged separately.
+
 
         # Check for stop event
         if self.stop_event.is_set():
              self.log_to_gui("Update", "节点列表刷新任务已取消。", "warn"); return
 
-        # --- Simulate Fetching Online Config Data ---
-        # In a real implementation, use requests.get(node_config_url) and parse JSON
-        # This data is mainly used for the combined list when searching
-        # TODO: Implement actual fetching of online node config
-        simulated_online_nodes_config = self._fetch_online_node_config() # Call helper to get the config
+        # --- Fetching Online Config Data ---
+        simulated_online_nodes_config = []
+        if node_config_url:
+            simulated_online_nodes_config = self._fetch_online_node_config() # Call helper to get the config
+        else:
+            self.log_to_gui("Update", "节点配置地址未设置，跳过在线配置获取。", "warn")
+
 
         # Check for stop event
         if self.stop_event.is_set():
@@ -2085,14 +2257,14 @@ class ComLauncherApp:
              node_name = online_node.get('name', '未知节点')
              node_name_lower = node_name.lower()
              repo_url = online_node.get('repo', 'N/A')
-             version = online_node.get('branch', 'main') # Use branch as default version placeholder
+             # Use branch or version from config, fallback to main
+             version_ref = online_node.get('branch') or online_node.get('version') or 'main'
              description = online_node.get('description', '无描述')
-
 
              if node_name_lower not in local_node_dict_lower:
                   # Node is in online config but not found locally, add it as "未安装"
                   # For "仓库信息", just show the recommended branch/version + (未安装)
-                  online_repo_info_display = f"{version} (未安装)"
+                  online_repo_info_display = f"{version_ref} (未安装)"
 
                   self.all_known_nodes.append({
                       "name": node_name,
@@ -2106,7 +2278,7 @@ class ComLauncherApp:
              # The local scan provides the authoritative info for installed nodes.
 
         # Sort the combined list by name for consistent searching
-        self.all_known_nodes.sort(key=lambda x: x['name'].lower())
+        self.all_known_nodes.sort(key=lambda x: x.get('name', '').lower())
 
         # Check for stop event
         if self.stop_event.is_set():
@@ -2114,26 +2286,29 @@ class ComLauncherApp:
 
         # --- Apply Filtering Logic and Populate Treeview ---
         filtered_nodes = []
-        # Get the search term again in case it changed while fetching online data
-        search_term_after_fetch = self.nodes_search_entry.get().strip().lower()
 
-        # Clear existing list in the GUI thread before populating
-        self.root.after(0, lambda: [self.nodes_tree.delete(item) for item in self.nodes_tree.get_children()])
-
-
-        if search_term_after_fetch == "":
+        if search_term_value == "":
             # If search is empty, show ONLY nodes from the local scan list (all local nodes)
             filtered_nodes = list(self.local_nodes_only)
             # Sort the default local list by name too
-            filtered_nodes.sort(key=lambda x: x['name'].lower())
+            filtered_nodes.sort(key=lambda x: x.get('name', '').lower())
         else:
             # If search has text, filter the combined list (all_known_nodes) by name match
-            filtered_nodes = [node for node in self.all_known_nodes if search_term_after_fetch in node.get('name', '').lower()]
+            filtered_nodes = [node for node in self.all_known_nodes if search_term_value in node.get('name', '').lower()]
             # Keep search results sorted by name
             filtered_nodes.sort(key=lambda x: x.get('name', '').lower())
 
 
         # Populate the Treeview with filtered data (using 5 columns)
+        # Clear before populating (already done above)
+        # self.root.after(0, lambda: [self.nodes_tree.delete(item) for item in self.nodes_tree.get_children()])
+
+        if not filtered_nodes and (search_term_value != "" or (search_term_value == "" and not is_comfyui_nodes_dir_valid)):
+             # If search is active and no results, or if search is empty but nodes dir is invalid
+              display_message = "未找到匹配的节点" if search_term_value != "" else "无法加载本地节点列表"
+              self.root.after(0, lambda msg=display_message: self.nodes_tree.insert("", tk.END, values=("", msg, "", "", "")))
+
+
         for node_data in filtered_nodes:
              # Check for stop event during insertion
              if self.stop_event.is_set():
@@ -2154,54 +2329,39 @@ class ComLauncherApp:
         self.log_to_gui("Update", f"节点列表刷新完成。已显示 {len(filtered_nodes)} 个节点。", "info")
         # UI state update is handled by the worker thread's finally block
 
-    # Helper to fetch online node config (Placeholder)
+    # Helper to fetch online node config (Placeholder) - Runs in worker thread
     def _fetch_online_node_config(self):
          """Fetches the online custom node list config."""
          node_config_url = self.node_config_url_var.get()
          if not node_config_url:
               self.log_to_gui("Update", "节点配置地址未设置，跳过在线配置获取。", "warn")
               return []
-         # In a real implementation, use requests.get(node_config_url)
+
+         self.log_to_gui("Update", f"尝试从 {node_config_url} 获取节点配置...", "info")
          try:
-              self.log_to_gui("Update", f"尝试从 {node_config_url} 获取节点配置...", "info")
-              # response = requests.get(node_config_url, timeout=15) # Add timeout
-              # response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
-              # config_data = response.json()
-              # print(f"[Launcher INFO] Got online node config: {config_data}") # Log the data received
+              response = requests.get(node_config_url, timeout=15) # Add timeout
+              response.raise_for_status() # Raise an HTTPError for bad responses (4xx or 5xx)
+              config_data = response.json()
+              # Basic validation of the structure
+              if not isinstance(config_data, list):
+                   self.log_to_gui("Update", f"在线节点配置格式错误：根不是列表。", "error")
+                   return []
+              # Check if stop event was set while waiting for request
+              if self.stop_event.is_set():
+                   self.log_to_gui("Update", "获取在线节点配置任务已取消。", "warn"); return []
 
-              # --- Simulated Data for testing ---
-              simulated_online_nodes_config = [
-                  {"name": "ComfyUI-Manager", "repo": "https://github.com/ltdrdata/ComfyUI-Manager.git", "branch": "main", "description": "ComfyUI Manager"},
-                  {"name": "ComfyUI-AnimateDiff-Evolved", "repo": "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved", "branch": "master", "description": "Animation nodes"},
-                  {"name": "ComfyUI-Impact-Pack", "repo": "https://github.com/ltdrdata/ComfyUI-Impact-Pack", "branch": "main", "description": "Impact Pack nodes"},
-                  {"name": "SaltAux", "repo": "https://github.com/Saltlaboratory/SaltAux", "branch": "main", "description": "SaltAux nodes"},
-                  {"name": "WASasquatch_Suite", "repo": "https://github.com/WASasquatch/WASasquatch_Suite", "branch": "main", "description": "WASasquatch nodes"},
-                  {"name": "ComfyUI-Custom-Scripts", "repo": "https://github.com/pythongosssss/ComfyUI-Custom-Scripts", "branch": "main", "description": "Custom Scripts nodes"},
-                  {"name": "Efficient-Nodes", "repo": "https://github.com/jokergoo/ComfyUI-Jokergoo-Nodes", "branch": "main", "description": "Efficient nodes"},
-                  {"name": "Aigodlike-Nodes", "repo": "https://gitee.com/AIGODLIKE/Aigodlike-ComfyUI-Nodes.git", "branch": "dev", "description": "Aigodlike nodes"},
-                  {"name": "Fooocus-Nodes-Another", "repo": "https://github.com/another/Fooocus-Nodes", "branch": "main", "description": "Another Fooocus nodes"},
-                  {"name": "Example-Node-1", "repo": "https://github.com/example/Example-Node-1.git", "branch": "main", "description": "Example node 1"},
-                  {"name": "Example-Node-2", "repo": "https://github.com/example/Example-Node-2.git", "branch": "main", "description": "Example node 2"},
-                  {"name": "Example-Node-3", "repo": "https://github.com/example/Example-Node-3.git", "branch": "main", "description": "Example node 3"},
-              ]
-              # Simulate adding more online nodes for testing search and scroll
-              for i in range(20):
-                   simulated_online_nodes_config.append({
-                       "name": f"Simulated-Node-{i+1}",
-                       "repo": f"https://github.com/simulated/Node-{i+1}.git",
-                       "branch": "main",
-                       "description": f"Simulated node number {i+1}"
-                   })
-              self.log_to_gui("Update", f"已获取模拟在线节点配置 (共 {len(simulated_online_nodes_config)} 条)。", "info")
-              return simulated_online_nodes_config # Return simulated data
-              # --- End Simulated Data ---
-
+              self.log_to_gui("Update", f"已获取在线节点配置 (共 {len(config_data)} 条)。", "info")
+              return config_data
 
          except requests.exceptions.RequestException as e:
               self.log_to_gui("Update", f"获取在线节点配置失败: {e}", "error")
               # Decide if this should show an error box or just log
               # self.root.after(0, lambda msg=str(e): messagebox.showerror("获取节点配置失败", f"无法从 {node_config_url} 获取在线节点配置:\n{msg}", parent=self.root))
               return [] # Return empty list on failure
+         except json.JSONDecodeError:
+              self.log_to_gui("Update", f"在线节点配置解析失败：不是有效的 JSON。", "error")
+              # self.root.after(0, lambda: messagebox.showerror("解析节点配置失败", "在线节点配置不是有效的 JSON 格式。", parent=self.root))
+              return []
          except Exception as e:
               self.log_to_gui("Update", f"处理在线节点配置时发生意外错误: {e}", "error")
               return []
@@ -2220,14 +2380,30 @@ class ComLauncherApp:
                   self.log_to_gui("Update", f"更新全部节点任务已取消。", "warn"); break # Stop processing
 
              node_name = node_info.get("name", "未知节点")
-             node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name)) # Derive path from name
+             comfyui_nodes_dir = self.comfyui_nodes_dir # Get nodes dir again in case config changed
+             node_install_path = os.path.normpath(os.path.join(comfyui_nodes_dir, node_name)) # Derive path from name
              repo_url = node_info.get("repo_url", "N/A")
              local_id = node_info.get("local_id", "N/A")
-             remote_branch = node_info.get("repo_info", "N/A").split(' ')[0].strip() # Get branch name from repo_info string
+             # Get remote branch name from the detailed info captured during refresh_node_list
+             remote_branch = node_info.get("remote_branch") # Use the stored branch name if available
+             if not remote_branch:
+                  # Fallback: try to parse from repo_info string, or default
+                  remote_branch = node_info.get("repo_info", "N/A").split(' ')[0].strip() # Get branch name from repo_info string
+                  if remote_branch in ("未知远程", "N/A", "信息获取失败", "无远程跟踪分支"):
+                      # Further fallback - maybe the node's default branch is 'main'?
+                      remote_branch = "main"
+                      self.log_to_gui("Update", f"无法确定节点 '{node_name}' 的远程跟踪分支，使用默认分支 '{remote_branch}' 进行更新。", "warn")
+
+             # Ensure remote_branch is not empty/invalid before pull
+             if not remote_branch or remote_branch in ("未知远程", "N/A", "信息获取失败", "无远程跟踪分支"):
+                 self.log_to_gui("Update", f"节点 '{node_name}' 远程跟踪分支信息无效 ({remote_branch})，跳过更新。", "warn")
+                 failed_nodes.append(f"{node_name} (远程分支无效)")
+                 continue
 
 
              self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 正在处理节点 '{node_name}'...", "info")
 
+             # Double check if directory is still a git repo
              if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
                   self.log_to_gui("Update", f"节点目录 '{node_name}' 不是有效的 Git 仓库 ({node_install_path})，跳过更新。", "warn")
                   failed_nodes.append(f"{node_name} (非Git仓库)")
@@ -2237,14 +2413,32 @@ class ComLauncherApp:
              stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=node_install_path, timeout=10)
              current_origin_url = stdout.strip() if returncode == 0 else ""
              if returncode != 0 or current_origin_url != repo_url:
-                  if returncode != 0: self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的当前远程 origin URL: {stderr if stderr else '未知错误'}", "warn")
-                  self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 不匹配或无法获取 ({current_origin_url} vs {repo_url})，尝试设置...", "warn")
-                  stdout, stderr, returncode = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=10)
-                  if returncode != 0:
-                      self.log_to_gui("Update", f"设置节点 '{node_name}' 的远程 URL 失败: {stderr if stderr else '未知错误'}", "error")
-                      # Continue but log error - maybe pull will still work if remote exists but URL changed?
+                  if returncode != 0: self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的当前远程 origin URL: {stderr.strip() if stderr else '未知错误'}", "warn")
+                  # Check if repo_url is valid before attempting to set
+                  if repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A"):
+                       self.log_to_gui("Update", f"节点 '{node_name}' 缺少有效的远程 URL ({repo_url})，无法更新远程地址。", "warn")
+                       # Continue, but note that remote operations might fail if URL is wrong/missing
                   else:
-                       self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 已更新。", "info")
+                       self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 不匹配或无法获取 ({current_origin_url} vs {repo_url})，尝试设置...", "warn")
+                       # Check if origin remote exists first
+                       stdout_remote_check, stderr_remote_check, returncode_remote_check = self._run_git_command(["remote", "get-url", "origin"], cwd=node_install_path, timeout=5)
+                       if returncode_remote_check == 0: # origin exists, just set URL
+                            self.log_to_gui("Update", f"执行 git remote set-url origin {repo_url} for '{node_name}'...", "info")
+                            stdout_set, stderr_set, returncode_set = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=10)
+                            if returncode_set != 0:
+                                 self.log_to_gui("Update", f"设置节点 '{node_name}' 的远程 URL 失败: {stderr_set.strip() if stderr_set else '未知错误'}", "error")
+                                 # Continue but log error - maybe pull will still work if remote exists but URL changed?
+                            else:
+                                self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 已更新。", "info")
+                       else: # origin does not exist, add it
+                            self.log_to_gui("Update", f"执行 git remote add origin {repo_url} for '{node_name}'...", "info")
+                            stdout_add, stderr_add, returncode_add = self._run_git_command(["remote", "add", "origin", repo_url], cwd=node_install_path, timeout=10)
+                            if returncode_add != 0:
+                                 self.log_to_gui("Update", f"添加节点 '{node_name}' 的远程 URL 失败: {stderr_add.strip() if stderr_add else '未知错误'}", "error")
+                                 # Continue but log error
+                            else:
+                                 self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 已添加。", "info")
+
 
              # Check for stop event
              if self.stop_event.is_set():
@@ -2265,7 +2459,7 @@ class ComLauncherApp:
              self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git fetch origin for '{node_name}'...", "info")
              stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=node_install_path, timeout=60)
              if returncode != 0:
-                  self.log_to_gui("Update", f"Git fetch 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
+                  self.log_to_gui("Update", f"Git fetch 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
                   failed_nodes.append(f"{node_name} (Fetch失败)")
                   continue
              self.log_to_gui("Update", f"Git fetch 完成 for '{node_name}'.", "info")
@@ -2279,16 +2473,18 @@ class ComLauncherApp:
              local_commit_id = stdout_local.strip() if returncode_local == 0 and stdout_local else None
 
              # Get remote tracking branch HEAD commit ID
+             # Ensure the remote branch exists locally after fetch
              stdout_remote, stderr_remote, returncode_remote = self._run_git_command(["rev-parse", f"origin/{remote_branch}"], cwd=node_install_path, timeout=5)
              remote_commit_id = stdout_remote.strip() if returncode_remote == 0 and stdout_remote else None
 
              if local_commit_id and remote_commit_id and local_commit_id != remote_commit_id:
                   self.log_to_gui("Update", f"节点 '{node_name}' 有新版本可用 ({local_id[:8]} -> {remote_commit_id[:8]})。", "info")
-                  # Perform git pull
+                  # Perform git pull (attempts merge, safer than reset if no local changes)
+                  # Use pull --ff-only if you want to avoid merge commits on fast-forwardable branches
                   self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git pull origin {remote_branch} for '{node_name}'...", "info")
                   stdout, stderr, returncode = self._run_git_command(["pull", "origin", remote_branch], cwd=node_install_path, timeout=180) # Allow more time
                   if returncode != 0:
-                       self.log_to_gui("Update", f"Git pull 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
+                       self.log_to_gui("Update", f"Git pull 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
                        failed_nodes.append(f"{node_name} (Pull失败)")
                        continue
                   self.log_to_gui("Update", f"Git pull 完成 for '{node_name}'.", "info")
@@ -2300,9 +2496,9 @@ class ComLauncherApp:
                   # Update submodules after pull
                   if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
                       self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git submodule update for '{node_name}'...", "info")
-                      stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive"], cwd=node_install_path, timeout=180)
+                      stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180) # Added --force
                       if returncode != 0:
-                           self.log_to_gui("Update", f"Git submodule update 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "warn")
+                           self.log_to_gui("Update", f"Git submodule update 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "warn")
                       else:
                            self.log_to_gui("Update", f"Git submodule update 完成 for '{node_name}'.", "info")
                   else:
@@ -2315,9 +2511,14 @@ class ComLauncherApp:
                   # Re-install Node-specific Python dependencies (if requirements.txt exists)
                   python_exe = self.python_exe_var.get()
                   requirements_path = os.path.join(node_install_path, "requirements.txt")
-                  if python_exe and os.path.isfile(python_exe) and os.path.isfile(requirements_path):
+                  if python_exe and os.path.isfile(python_exe) and os.path.isdir(node_install_path) and os.path.isfile(requirements_path):
                        self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 pip 安装节点依赖 for '{node_name}'...", "info")
                        pip_cmd = [python_exe, "-m", "pip", "install", "-r", requirements_path, "--upgrade"]
+                       # Add --user if not in venv (check similar to main body)
+                       if platform.system() != "Windows" and sys.prefix == sys.base_prefix:
+                            pip_cmd.append("--user")
+                            self.log_to_gui("Update", f"节点 '{node_name}': 未检测到Python虚拟环境，使用 --user 选项安装依赖。", "warn")
+
                        pip_cmd.extend(["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121", "--extra-index-url", "https://download.pytorch.org/whl/rocm5.7"])
 
                        stdout, stderr, returncode = self._run_git_command(
@@ -2325,12 +2526,13 @@ class ComLauncherApp:
                             cwd=node_install_path, timeout=180 # Allow more time
                        )
                        if returncode != 0:
-                            self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
+                            self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
                             self.root.after(0, lambda name=node_name: messagebox.showwarning("节点依赖安装失败 / Node Dependency Install Failed", f"节点 '{name}' 的 Python 依赖安装失败，请手动检查。\n请查看后台日志获取详情。", parent=self.root))
                        else:
                             self.log_to_gui("Update", f"Pip 安装节点依赖完成 for '{node_name}'.", "info")
                   else:
-                       self.log_to_gui("Update", f"节点 '{node_name}' 未找到 requirements.txt 或 Python 无效，跳过依赖安装。", "info")
+                       if os.path.isdir(node_install_path) and os.path.exists(os.path.join(node_install_path, ".git")): # Only warn if it's a git repo that *might* have had deps
+                            self.log_to_gui("Update", f"节点 '{node_name}' 未找到 requirements.txt 或 Python 无效，跳过依赖安装。", "info")
 
                   updated_count += 1
                   self.log_to_gui("Update", f"节点 '{node_name}' 更新成功。", "info")
@@ -2340,7 +2542,7 @@ class ComLauncherApp:
                   self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的本地Commit ID，跳过更新检查。", "warn")
                   failed_nodes.append(f"{node_name} (本地ID获取失败)")
              elif not remote_commit_id:
-                  self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的远程Commit ID ({remote_branch})，跳过更新检查。", "warn")
+                  self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的远程Commit ID (origin/{remote_branch})，跳过更新检查。", "warn")
                   failed_nodes.append(f"{node_name} (远程信息获取失败)")
 
 
@@ -2356,145 +2558,125 @@ class ComLauncherApp:
         self.root.after(0, self.refresh_node_list)
         # UI state update is handled by the worker thread's finally block
 
+    # REQUIREMENT 5: Implement Node Uninstall Task
+    def _node_uninstall_task(self, node_name, node_install_path):
+         """Task to uninstall a node by deleting its directory. Runs in worker thread."""
+         # Check for stop event
+         if self.stop_event.is_set():
+              self.log_to_gui("Update", f"节点 '{node_name}' 卸载任务已取消。", "warn"); return
 
-    def switch_install_node_version(self):
-        """Installs or Switches the version of the selected node. Queued for worker thread."""
-        # Validation and queueing are done in _queue_node_switch_install
-        pass # The actual logic is now in _queue_node_switch_install
+         self.log_to_gui("Update", f"正在卸载节点 '{node_name}' (删除目录: {node_install_path})...", "info")
 
-    def _switch_install_node_task(self, node_name, node_status, node_install_path, repo_url, target_ref):
-        """Task to execute git commands for installing/switching node version. Runs in worker thread."""
+         try:
+              # Double check if the directory exists before attempting deletion
+              if not os.path.isdir(node_install_path):
+                   self.log_to_gui("Update", f"节点目录 '{node_install_path}' 不存在，无需卸载。", "warn")
+                   self.root.after(0, lambda name=node_name: messagebox.showwarning("卸载失败", f"节点目录 '{name}' 不存在。", parent=self.root))
+                   return # Exit task if directory is already gone
+
+              # Check for stop event just before deletion
+              if self.stop_event.is_set(): raise threading.ThreadExit
+
+              # Perform directory deletion
+              shutil.rmtree(node_install_path)
+              self.log_to_gui("Update", f"节点目录 '{node_install_path}' 删除成功。", "info")
+
+              # Success message
+              self.log_to_gui("Update", f"节点 '{node_name}' 卸载流程完成。", "info")
+              self.root.after(0, lambda name=node_name: messagebox.showinfo("卸载完成 / Uninstall Complete", f"节点 '{name}' 已成功卸载。", parent=self.root))
+
+         except threading.ThreadExit:
+              self.log_to_gui("Update", f"节点 '{node_name}' 卸载任务已取消。", "warn")
+              # If cancellation happened during deletion, the directory might be in an inconsistent state.
+              self.root.after(0, lambda name=node_name: messagebox.showwarning("卸载被中断", f"节点 '{name}' 的卸载任务被中断，目录可能未完全清除。", parent=self.root))
+         except Exception as e:
+             error_msg = f"节点 '{node_name}' 卸载失败: {e}"
+             self.log_to_gui("Update", error_msg, "error")
+             self.root.after(0, lambda msg=error_msg: messagebox.showerror("卸载失败 / Uninstall Failed", msg, parent=self.root))
+         finally:
+             # Always refresh list and update UI state after task finishes
+             self.root.after(0, self.refresh_node_list)
+             # UI state update is handled by the worker thread's finally block
+
+
+    # REQUIREMENT 5: Node Switch/Install and History Modal Logic
+    # _switch_install_node_task is now used for INSTALLATION and potentially simple CHECKOUT/PULL if called directly.
+    # The MODAL logic for switching versions uses a different task flow.
+
+    # Renamed to be more specific: this handles INSTALLATION (clone)
+    # For installed nodes, _queue_node_switch_install calls _queue_node_history_fetch instead.
+    def _switch_install_node_task(self, node_name, node_install_path, repo_url, target_ref):
+        """Task to execute git commands for INSTALLING a node (cloning). Runs in worker thread."""
         # Check for stop event
         if self.stop_event.is_set():
-             self.log_to_gui("Update", f"节点 '{node_name}' 操作任务已取消。", "warn"); return
+             self.log_to_gui("Update", f"节点 '{node_name}' 安装任务已取消。", "warn"); return
 
-        action = "安装" if node_status != "已安装" else "切换版本到"
+        action = "安装" # This task is specifically for installation via clone
         self.log_to_gui("Update", f"正在对节点 '{node_name}' 执行 '{action}' (目标引用: {target_ref})...", "info")
 
         try:
-            git_exe = self.git_exe_path_var.get()
-            comfyui_nodes_dir = self.comfyui_nodes_dir
+            comfyui_nodes_dir = self.comfyui_nodes_dir # Get nodes dir again
 
-            if node_status != "已安装":
-                 # --- Install (Clone) ---
-                 # Ensure the parent directory for cloning exists
-                 if not os.path.exists(comfyui_nodes_dir):
-                      self.log_to_gui("Update", f"创建节点目录: {comfyui_nodes_dir}", "info")
-                      os.makedirs(comfyui_nodes_dir, exist_ok=True) # Real command
+            # --- Install (Clone) ---
+            # Ensure the parent directory for cloning exists
+            if not os.path.exists(comfyui_nodes_dir):
+                 self.log_to_gui("Update", f"创建节点目录: {comfyui_nodes_dir}", "info")
+                 # Use root.after for potential message box if creation fails, but os.makedirs handles exist_ok
+                 os.makedirs(comfyui_nodes_dir, exist_ok=True) # Real command
 
-                 self.log_to_gui("Update", f"执行 Git clone {repo_url} {node_install_path}...", "info")
-                 # Optionally clone a specific branch initially
-                 clone_cmd = ["clone"]
-                 # Check if target_ref is a branch using ls-remote
-                 is_branch = False
-                 stdout_check, stderr_check, returncode_check = self._run_git_command(["ls-remote", "--heads", repo_url, target_ref], cwd=comfyui_nodes_dir, timeout=10)
-                 if returncode_check == 0 and stdout_check.strip(): is_branch = True
-                 elif returncode_check != 0 and "not found" not in stderr_check.lower():
-                      self.log_to_gui("Update", f"检查目标引用 '{target_ref}' 是否为远程分支失败: {stderr_check if stderr_check else '未知错误'}", "warn")
+            # Check if the directory already exists and is not empty (might be a manual copy or failed previous attempt)
+            if os.path.exists(node_install_path) and (os.path.isdir(node_install_path) and len(os.listdir(node_install_path)) > 0 or not os.path.isdir(node_install_path)):
+                 self.log_to_gui("Update", f"节点安装目录 '{node_install_path}' 已存在且不为空，请先手动移除或卸载。", "error")
+                 # Show error box in GUI thread
+                 self.root.after(0, lambda name=node_name, path=node_install_path: messagebox.showerror("安装失败", f"节点安装目录已存在且不为空:\n{path}\n请先手动移除或使用卸载功能。", parent=self.root))
+                 return # Cannot clone if directory exists and isn't empty
 
+            self.log_to_gui("Update", f"执行 Git clone {repo_url} {node_install_path}...", "info")
+            clone_cmd = ["clone"]
+            # Optionally clone a specific branch initially if target_ref is a branch
+            # It's safer to just clone and then checkout the specific ref.
+            # git clone <repo_url> <install_path>
+            clone_cmd.extend([repo_url, node_install_path])
 
-                 if is_branch:
-                     clone_cmd.extend(["--branch", target_ref]) # Clone specific branch
-                 clone_cmd.extend([repo_url, node_install_path])
+            stdout, stderr, returncode = self._run_git_command(clone_cmd, cwd=comfyui_nodes_dir, timeout=300) # Allow more time for clone
+            if returncode != 0:
+                 self.log_to_gui("Update", f"Git clone 失败: {stderr.strip() if stderr else '未知错误'}", "error")
+                 # Attempt to remove the partially created directory
+                 if os.path.exists(node_install_path):
+                      try:
+                           # Use root.after for confirmation dialog? No, auto-clean is fine here.
+                           shutil.rmtree(node_install_path)
+                           self.log_to_gui("Update", f"已移除失败的节点目录: {node_install_path}", "info")
+                      except Exception as rm_err:
+                           self.log_to_gui("Update", f"移除失败的节点目录 '{node_install_path}' 失败: {rm_err}", "error")
+                 raise Exception("Git clone 失败")
+            self.log_to_gui("Update", "Git clone 完成。", "info")
 
-                 stdout, stderr, returncode = self._run_git_command(clone_cmd, cwd=comfyui_nodes_dir, timeout=300) # Allow more time for clone
-                 if returncode != 0:
-                      self.log_to_gui("Update", f"Git clone 失败: {stderr if stderr else '未知错误'}", "error")
-                      # Attempt to remove the partially created directory
-                      if os.path.exists(node_install_path):
-                           try:
-                                import shutil
-                                shutil.rmtree(node_install_path)
-                                self.log_to_gui("Update", f"已移除失败的节点目录: {node_install_path}", "info")
-                           except Exception as rm_err:
-                                self.log_to_gui("Update", f"移除失败的节点目录 '{node_install_path}' 失败: {rm_err}", "error")
-                      raise Exception("Git clone 失败")
-                 self.log_to_gui("Update", "Git clone 完成。", "info")
+            # Check for stop event
+            if self.stop_event.is_set(): raise threading.ThreadExit
 
-                 # After cloning, we are usually already on the target branch if --branch was used.
-                 # If cloning a tag/commit, HEAD might be detached. No need to explicitly checkout after clone unless cloning specific commit/tag.
-                 # The check below is mostly redundant if --branch was used, but safe.
-                 if not is_branch: # If cloned a tag or specific commit
-                      self.log_to_gui("Update", f"执行 Git checkout {target_ref}...", "info")
-                      stdout, stderr, returncode = self._run_git_command(["checkout", target_ref], cwd=node_install_path, timeout=60)
-                      if returncode != 0:
-                           self.log_to_gui("Update", f"Git checkout 失败: {stderr if stderr else '未知错误'}", "error")
-                           raise Exception(f"Git checkout {target_ref} 失败")
-                      self.log_to_gui("Update", f"Git checkout {target_ref} 完成。", "info")
-
-
-            else: # Already installed, switch version
-                 # --- Switch Version (Fetch & Checkout/Pull) ---
-                 if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
-                      self.log_to_gui("Update", f"节点目录不是有效的 Git 仓库 ({node_install_path})，无法更新。", "error")
-                      raise Exception(f"节点目录不是有效的 Git 仓库: {node_install_path}")
-
-                 # Check for stop event
-                 if self.stop_event.is_set(): raise threading.ThreadExit
-
-                 # Ensure tracking remote is correct (Optional check)
-                 stdout, stderr, returncode = self._run_git_command(["remote", "get-url", "origin"], cwd=node_install_path, timeout=10)
-                 current_origin_url = stdout.strip() if returncode == 0 else ""
-                 if returncode != 0 or current_origin_url != repo_url:
-                     if returncode != 0: self.log_to_gui("Update", f"无法获取节点 '{node_name}' 的当前远程 origin URL: {stderr if stderr else '未知错误'}", "warn")
-                     self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 不匹配或无法获取 ({current_origin_url} vs {repo_url})，尝试设置...", "warn")
-                     stdout, stderr, returncode = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=10)
-                     if returncode != 0:
-                         self.log_to_gui("Update", f"设置节点 '{node_name}' 的远程 URL 失败: {stderr if stderr else '未知错误'}", "error")
-                         # Not critical error? Continue but log.
-                     else:
-                          self.log_to_gui("Update", f"节点 '{node_name}' 的远程 origin URL 已更新。", "info")
-
-                 # Check for stop event
-                 if self.stop_event.is_set(): raise threading.ThreadExit
-
-                 # Fetch latest from origin
-                 self.log_to_gui("Update", f"执行 Git fetch origin for '{node_name}'...", "info")
-                 stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=node_install_path, timeout=60) # Increased timeout
-                 if returncode != 0:
-                      self.log_to_gui("Update", f"Git fetch 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
-                      raise Exception(f"Git fetch 失败 for '{node_name}'")
-                 self.log_to_gui("Update", f"Git fetch 完成 for '{node_name}'.", "info")
-
-                 # Check for stop event
-                 if self.stop_event.is_set(): raise threading.ThreadExit
-
-                 # Determine if target_ref is a branch or commit/tag and use appropriate command (checkout/pull)
-                 # Try git checkout first, as it works for both branches and tags/commits
-                 self.log_to_gui("Update", f"执行 Git checkout {target_ref} for '{node_name}'...", "info")
-                 stdout, stderr, returncode = self._run_git_command(["checkout", target_ref], cwd=node_install_path, timeout=60)
-                 if returncode != 0:
-                      self.log_to_gui("Update", f"Git checkout 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
-                      # If checkout fails, it might be a branch that needs pulling (if HEAD was detached etc.)
-                      # Try git pull as a fallback if checkout failed for a reference that exists remotely as a branch
-                      check_branch_cmd = ["ls-remote", "--heads", "origin", target_ref]
-                      stdout_check, stderr_check, returncode_check = self._run_git_command(check_branch_cmd, cwd=node_install_path, timeout=5)
-                      if returncode_check == 0 and stdout_check.strip(): # It's a remote branch
-                          self.log_to_gui("Update", f"'{target_ref}' 被识别为远程分支，尝试执行 Git pull...", "info")
-                          # Try git pull origin target_ref
-                          stdout, stderr, returncode = self._run_git_command(["pull", "origin", target_ref], cwd=node_install_path, timeout=120) # Allow more time
-                          if returncode != 0:
-                               self.log_to_gui("Update", f"Git pull 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
-                               raise Exception(f"Git pull 失败 for '{node_name}'")
-                          self.log_to_gui("Update", f"Git pull 完成 for '{node_name}'.", "info")
-                      else:
-                           # It's neither a branch nor a tag/commit that checkout could handle
-                           self.log_to_gui("Update", f"无法识别或切换到引用 '{target_ref}' for '{node_name}': {stderr if stderr else '未知错误'}", "error")
-                           raise Exception(f"无法识别或切换到引用 '{target_ref}' for '{node_name}'")
-                 self.log_to_gui("Update", f"Git checkout {target_ref} 完成 for '{node_name}'.", "info")
+            # After cloning, checkout the target ref if it's not the default branch (or if we didn't use --branch)
+            # It's safer to always checkout the specified target_ref after cloning.
+            self.log_to_gui("Update", f"执行 Git checkout {target_ref}...", "info")
+            stdout, stderr, returncode = self._run_git_command(["checkout", target_ref], cwd=node_install_path, timeout=60)
+            if returncode != 0:
+                 self.log_to_gui("Update", f"Git checkout 失败: {stderr.strip() if stderr else '未知错误'}", "error")
+                 # This might leave the repo in a bad state.
+                 raise Exception(f"Git checkout {target_ref} 失败")
+            self.log_to_gui("Update", f"Git checkout {target_ref} 完成。", "info")
 
 
             # Check for stop event
             if self.stop_event.is_set(): raise threading.ThreadExit
 
-            # --- Update submodules (for both install and switch if it's a git repo) ---
+            # --- Update submodules (if it's a git repo) ---
             if os.path.isdir(node_install_path) and os.path.exists(os.path.join(node_install_path, ".git")):
                  if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
                      self.log_to_gui("Update", f"执行 Git submodule update for '{node_name}'...", "info")
-                     stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive"], cwd=node_install_path, timeout=180) # Increased timeout
+                     stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180) # Added --force
                      if returncode != 0:
-                          self.log_to_gui("Update", f"Git submodule update 失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
-                          # Not critical error? Continue but log.
+                          self.log_to_gui("Update", f"Git submodule update 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
+                          # Log error but don't necessarily fail the install
                      else:
                           self.log_to_gui("Update", f"Git submodule update 完成 for '{node_name}'.", "info")
                  else:
@@ -2502,31 +2684,36 @@ class ComLauncherApp:
             else:
                  self.log_to_gui("Update", f"跳过 submodule update，'{node_name}' 目录不是有效的 Git 仓库。", "warn")
 
+
             # Check for stop event
             if self.stop_event.is_set(): raise threading.ThreadExit
 
 
-            # --- Re-install Node-specific Python dependencies (if requirements.txt exists) ---
+            # --- Install Node-specific Python dependencies (if requirements.txt exists) ---
             python_exe = self.python_exe_var.get()
             requirements_path = os.path.join(node_install_path, "requirements.txt")
             if python_exe and os.path.isfile(python_exe) and os.path.isdir(node_install_path) and os.path.isfile(requirements_path):
                  self.log_to_gui("Update", f"执行 pip 安装节点依赖 for '{node_name}'...", "info")
-                 # Using --upgrade to ensure dependencies match the new requirements.txt
                  pip_cmd = [python_exe, "-m", "pip", "install", "-r", requirements_path, "--upgrade"]
-                 # Add extra index URLs
+                 # Add --user if not in venv (check similar to main body)
+                 if platform.system() != "Windows" and sys.prefix == sys.base_prefix:
+                      pip_cmd.append("--user")
+                      self.log_to_gui("Update", f"节点 '{node_name}': 未检测到Python虚拟环境，使用 --user 选项安装依赖。", "warn")
+
                  pip_cmd.extend(["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121", "--extra-index-url", "https://download.pytorch.org/whl/rocm5.7"])
+
 
                  stdout, stderr, returncode = self._run_git_command(
                       pip_cmd,
                       cwd=node_install_path, timeout=180 # Allow more time
                  )
                  if returncode != 0:
-                      self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr if stderr else '未知错误'}", "error")
+                      self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
                       self.root.after(0, lambda name=node_name: messagebox.showwarning("节点依赖安装失败 / Node Dependency Install Failed", f"节点 '{name}' 的 Python 依赖安装失败，请手动检查。\n请查看后台日志获取详情。", parent=self.root))
                  else:
                       self.log_to_gui("Update", f"Pip 安装节点依赖完成 for '{node_name}'.", "info")
             else:
-                 if os.path.isdir(node_install_path) and os.path.exists(os.path.join(node_install_path, ".git")): # Only warn if it's a git repo that *might* have had deps
+                 if os.path.isdir(node_install_path) and os.path.exists(os.path.join(node_install_path, ".git")): # Only log info if it's a potentially valid node
                       self.log_to_gui("Update", f"节点 '{node_name}' 未找到 requirements.txt 或 Python 无效，跳过依赖安装。", "info")
 
 
@@ -2535,7 +2722,7 @@ class ComLauncherApp:
             self.root.after(0, lambda name=node_name, act=action: messagebox.showinfo("操作完成 / Operation Complete", f"节点 '{name}' 已成功执行 '{act}' 操作。", parent=self.root))
 
         except threading.ThreadExit:
-             self.log_to_gui("Update", f"节点 '{node_name}' 操作任务已取消。", "warn")
+             self.log_to_gui("Update", f"节点 '{node_name}' 安装任务已取消。", "warn")
         except Exception as e:
             error_msg = f"节点 '{node_name}' '{action}' 流程失败: {e}"
             self.log_to_gui("Update", error_msg, "error")
@@ -2545,17 +2732,401 @@ class ComLauncherApp:
             self.root.after(0, self.refresh_node_list)
             # UI state update is handled by the worker thread's finally block
 
+    # REQUIREMENT 5: Task to fetch node history
+    def _queue_node_history_fetch(self, node_name, node_install_path):
+        """Queues the task to fetch history for an installed node."""
+        self.log_to_gui("Launcher", f"将获取节点 '{node_name}' 版本历史任务添加到队列...", "info")
+        # Pass necessary info to the task
+        self.update_task_queue.put((self._node_history_fetch_task, [node_name, node_install_path], {}))
+        # UI state update is handled by the queueing method's finally block
+
+    # REQUIREMENT 5: Task to fetch node history (Runs in worker thread)
+    def _node_history_fetch_task(self, node_name, node_install_path):
+         """Task to fetch git history (branches and tags) for a node. Runs in worker thread."""
+         self.log_to_gui("Update", f"正在获取节点 '{node_name}' 的版本历史...", "info")
+
+         # Check for stop event
+         if self.stop_event.is_set():
+              self.log_to_gui("Update", f"节点 '{node_name}' 历史获取任务已取消。", "warn"); return
+
+         history_data = [] # List to store history entries
+
+         try:
+             # Ensure it's a valid git repo
+             if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
+                  self.log_to_gui("Update", f"节点目录 '{node_install_path}' 不是有效的 Git 仓库，无法获取历史。", "error")
+                  raise Exception(f"节点目录不是有效的 Git 仓库: {node_install_path}")
+
+             # Ensure tracking remote is correct (Optional but good practice) - similar logic to main body activation
+             # Can skip setting if it fails, just log warning. Fetch below might fail if remote is bad.
+             repo_url = "无法获取远程 URL"
+             # Try to find the repo_url from the stored local_nodes_only data
+             found_node_info = next((node for node in self.local_nodes_only if os.path.normpath(os.path.join(self.comfyui_nodes_dir, node.get("name", ""))) == os.path.normpath(node_install_path)), None)
+             if found_node_info and found_node_info.get("repo_url") not in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A"):
+                  repo_url = found_node_info.get("repo_url")
+                  # Check current remote URL and set if needed, same logic as main body activate
+                  try:
+                       stdout_url, stderr_url, returncode_url = self._run_git_command(["remote", "get-url", "origin"], cwd=node_install_path, timeout=10)
+                       current_origin_url = stdout_url.strip() if returncode_url == 0 else ""
+                       if not current_origin_url or current_origin_url != repo_url:
+                            self.log_to_gui("Update", f"节点 '{node_name}': 远程 origin URL 不匹配或无法获取 ({current_origin_url} vs {repo_url})，尝试设置...", "warn")
+                            stdout_set, stderr_set, returncode_set = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=10)
+                            if returncode_set != 0:
+                                 self.log_to_gui("Update", f"节点 '{node_name}': 设置远程 URL 失败: {stderr_set.strip() if stderr_set else '未知错误'}", "warn")
+                            else:
+                                self.log_to_gui("Update", f"节点 '{node_name}': 远程 origin URL 已更新。", "info")
+                  except Exception as e:
+                       self.log_to_gui("Update", f"节点 '{node_name}': 获取/设置远程 origin URL 异常: {e}", "warn")
+             else:
+                  self.log_to_gui("Update", f"节点 '{node_name}': 未在本地节点列表中找到或无有效远程 URL ({repo_url})，跳过远程 URL 检查/设置。", "warn")
+
+
+             # Check for stop event
+             if self.stop_event.is_set(): raise threading.ThreadExit
+
+             # Fetch latest info from origin first
+             self.log_to_gui("Update", f"执行 Git fetch origin for '{node_name}'...", "info")
+             stdout, stderr, returncode = self._run_git_command(["fetch", "origin"], cwd=node_install_path, timeout=60)
+             if returncode != 0:
+                  self.log_to_gui("Update", f"Git fetch 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
+                  # Don't raise exception, allow listing local refs if fetch fails
+                  self.log_to_gui("Update", "无法从远程获取最新历史，列表可能不完整。", "warn")
+
+
+             # Check for stop event after fetch
+             if self.stop_event.is_set():
+                  self.log_to_gui("Update", f"节点 '{node_name}' 历史获取任务已取消。", "warn"); return
+
+             # Get list of relevant refs (remote branches and tags) with commit info
+             # Format: '%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)'
+             # Get branches (remote)
+             branches_output, branch_err, branch_rc = self._run_git_command(
+                  ["for-each-ref", "refs/remotes/origin/", "--sort=-committerdate", "--format=%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)"],
+                  cwd=node_install_path, timeout=30
+             )
+             if branch_rc == 0 and branches_output:
+                  for line in branches_output.splitlines():
+                      parts = line.split(' ', 3)
+                      if len(parts) == 4:
+                          refname = parts[0].replace("origin/", "")
+                          commit_id = parts[1]
+                          date_iso = parts[2]
+                          description = parts[3].strip()
+                          if "->" not in refname: # Exclude origin/HEAD
+                              history_data.append({"type": "branch", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
+             elif branch_rc != 0:
+                  self.log_to_gui("Update", f"获取节点 '{node_name}' 远程分支列表失败: {branch_err.strip() if branch_err else '未知错误'}", "warn")
+
+
+             # Check for stop event
+             if self.stop_event.is_set():
+                  self.log_to_gui("Update", f"节点 '{node_name}' 历史获取任务已取消。", "warn"); return
+
+             # Get tags
+             tags_output, tag_err, tag_rc = self._run_git_command(
+                  ["for-each-ref", "refs/tags/", "--sort=-taggerdate", "--format=%(refname:short) %(objectname) %(taggerdate:iso-strict) %(contents:subject)"],
+                  cwd=node_install_path, timeout=30
+             )
+             if tag_rc == 0 and tags_output:
+                  for line in tags_output.splitlines():
+                      parts = line.split(' ', 3)
+                      if len(parts) == 4:
+                          refname = parts[0].replace("refs/tags/", "")
+                          commit_id = parts[1] # Object name the tag points to
+                          date_iso = parts[2]
+                          description = parts[3].strip()
+                          history_data.append({"type": "tag", "name": refname, "commit_id": commit_id, "date_iso": date_iso, "description": description})
+             elif tag_rc != 0:
+                  self.log_to_gui("Update", f"获取节点 '{node_name}' 标签列表失败: {tag_err.strip() if tag_err else '未知错误'}", "warn")
+
+
+             # Sort history data by date (newest first)
+             history_data.sort(key=lambda x: x['date_iso'], reverse=True)
+
+             self._node_history_modal_data = history_data # Store data for the modal
+             self._node_history_modal_node_name = node_name # Store node name
+
+             self.log_to_gui("Update", f"节点 '{node_name}' 版本历史获取完成 (共 {len(history_data)} 条)。", "info")
+
+             # Show the modal in the GUI thread
+             self.root.after(0, self._show_node_history_modal)
+
+
+         except threading.ThreadExit:
+              self.log_to_gui("Update", f"节点 '{node_name}' 历史获取任务已取消。", "warn")
+              self._node_history_modal_data = [] # Clear data if cancelled
+              self._node_history_modal_node_name = ""
+              # No need to show modal if cancelled
+         except Exception as e:
+             error_msg = f"获取节点 '{node_name}' 版本历史失败: {e}"
+             self.log_to_gui("Update", error_msg, "error")
+             self._node_history_modal_data = [] # Clear data on error
+             self._node_history_modal_node_name = ""
+             # Show error box in GUI thread
+             self.root.after(0, lambda msg=error_msg: messagebox.showerror("获取历史失败 / Failed to Get History", msg, parent=self.root))
+         finally:
+              # UI state update is handled by the worker thread's finally block
+              pass # No specific action needed here, modal/error is shown by after calls.
+
+
+    # REQUIREMENT 5: Show Node History Modal (Runs in GUI thread)
+    def _show_node_history_modal(self):
+         """Creates and displays the node version history modal."""
+         if not self._node_history_modal_data:
+              self.log_to_gui("Update", f"没有节点 '{self._node_history_modal_node_name}' 的历史版本数据。", "warn")
+              messagebox.showwarning("无版本历史", f"未能获取节点 '{self._node_history_modal_node_name}' 的版本历史。", parent=self.root)
+              self._node_history_modal_node_name = "" # Clear state
+              return
+
+         node_name = self._node_history_modal_node_name
+
+         modal_window = Toplevel(self.root)
+         modal_window.title(f"切换版本 - {node_name}")
+         modal_window.transient(self.root) # Keep modal on top of main window
+         modal_window.grab_set() # Modal
+         modal_window.geometry("700x500")
+         modal_window.configure(bg=BG_COLOR)
+         modal_window.columnconfigure(0, weight=1)
+         modal_window.rowconfigure(0, weight=1)
+         modal_window.protocol("WM_DELETE_WINDOW", modal_window.destroy) # Close modal on window close button
+
+
+         frame = ttk.Frame(modal_window, style='TFrame', padding=10)
+         frame.grid(row=0, column=0, sticky="nsew")
+         frame.columnconfigure(0, weight=1)
+         frame.rowconfigure(0, weight=1) # Treeview row
+
+
+         # Treeview for history
+         history_tree = ttk.Treeview(frame, columns=("type", "name", "commit_id", "date", "description"), show="headings", style='NodeHistory.Treeview') # Use dedicated style
+         history_tree.heading("type", text="类型");
+         history_tree.heading("name", text="名称");
+         history_tree.heading("commit_id", text="提交ID");
+         history_tree.heading("date", text="日期");
+         history_tree.heading("description", text="描述")
+
+         history_tree.column("type", width=60, stretch=tk.NO);
+         history_tree.column("name", width=120, stretch=tk.NO);
+         history_tree.column("commit_id", width=80, stretch=tk.NO); # Short ID display
+         history_tree.column("date", width=100, stretch=tk.NO);
+         history_tree.column("description", width=200, stretch=tk.YES);
+
+         history_tree.grid(row=0, column=0, sticky="nsew")
+
+         # Scrollbar for history tree
+         history_scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=history_tree.yview)
+         history_tree.configure(yscrollcommand=history_scrollbar.set)
+         history_scrollbar.grid(row=0, column=1, sticky="ns")
+
+         # Populate the treeview with stored history data
+         for item_data in self._node_history_modal_data:
+              try:
+                   # Format date to YYYY-MM-DD
+                   date_obj = datetime.fromisoformat(item_data['date_iso'])
+                   date_display = date_obj.strftime('%Y-%m-%d')
+              except ValueError:
+                   date_display = "无效日期"
+
+              history_tree.insert("", tk.END, values=(
+                   item_data.get("type", "未知"),
+                   item_data.get("name", "N/A"),
+                   item_data.get("commit_id", "N/A")[:8], # Display short commit ID
+                   date_display,
+                   item_data.get("description", "无描述")
+              ), iid=item_data.get("commit_id")) # Use full commit ID as iid for easy retrieval
+
+         # Button frame at the bottom
+         button_frame = ttk.Frame(modal_window, style='TFrame', padding=(0, 5))
+         button_frame.grid(row=1, column=0, sticky="ew")
+         button_frame.columnconfigure(0, weight=1) # Spacer column
+         switch_button = ttk.Button(button_frame, text="确定切换到此版本", style="Accent.TButton",
+                                    command=lambda: self._on_modal_switch_confirm(modal_window, history_tree, node_name))
+         switch_button.grid(row=0, column=1, padx=(0, 5))
+         cancel_button = ttk.Button(button_frame, text="取消", style="TButton", command=modal_window.destroy)
+         cancel_button.grid(row=0, column=2)
+
+         # Bind selection event to enable/disable the switch button
+         def update_switch_button_state(event):
+             selected_item = history_tree.focus()
+             switch_button.config(state=tk.NORMAL if selected_item else tk.DISABLED)
+
+         history_tree.bind("<<TreeviewSelect>>", update_switch_button_state)
+         switch_button.config(state=tk.DISABLED) # Initially disabled
+
+         # Clear the temporary stored data after showing modal
+         self._node_history_modal_data = []
+         # node_name is stored locally within this function scope now
+
+
+    # REQUIREMENT 5: Handle Modal Switch Confirmation (Runs in GUI thread)
+    def _on_modal_switch_confirm(self, modal_window, history_tree, node_name):
+         """Handles the confirmation button click in the node history modal."""
+         selected_item = history_tree.focus()
+         if not selected_item:
+             messagebox.showwarning("未选择版本", "请从列表中选择一个要切换的版本。", parent=modal_window)
+             return
+
+         # The iid of the treeview item is the full commit ID
+         target_commit_id = history_tree.item(selected_item, 'iid')
+
+         # Get the node's installation path
+         comfyui_nodes_dir = self.comfyui_nodes_dir # Get nodes dir again
+         # Find the node info from the stored local_nodes_only list to get the correct directory name
+         found_node_info = next((node for node in self.local_nodes_only if node.get("name") == node_name), None)
+
+         if not found_node_info:
+              self.log_to_gui("Update", f"节点 '{node_name}' 未在本地节点列表中找到，无法执行切换。", "error")
+              messagebox.showerror("切换失败", f"无法找到节点 '{node_name}' 的本地信息。", parent=modal_window)
+              modal_window.destroy()
+              return
+
+         # Derive the node installation path based on the name found in local_nodes_only
+         node_install_path = os.path.normpath(os.path.join(comfyui_nodes_dir, found_node_info.get("name")))
+
+         if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
+              self.log_to_gui("Update", f"节点目录 '{node_install_path}' 不是有效的 Git 仓库，无法切换版本。", "error")
+              messagebox.showerror("切换失败", f"节点目录 '{node_install_path}' 不是有效的 Git 仓库。", parent=modal_window)
+              modal_window.destroy()
+              return
+
+
+         # Confirm switch
+         confirm = messagebox.askyesno("确认切换版本", f"确定要将节点 '{node_name}' 切换到版本 (提交ID: {target_commit_id[:8]}) 吗？\n此操作会修改节点目录内容。\n\n警告：切换版本可能需要重新安装依赖，且可能丢失本地修改！\n建议在切换前备份节点目录。\n确认前请确保 ComfyUI 已停止运行。", parent=modal_window)
+         if not confirm: return
+
+
+         self.log_to_gui("Launcher", f"将节点 '{node_name}' 切换到版本 (提交ID: {target_commit_id[:8]}) 任务添加到队列...", "info")
+         # Queue the task to switch to the specific commit ID
+         # Use a dedicated task or modify the existing _switch_install_node_task
+         # Let's create a dedicated task for switching to a specific commit/tag/branch.
+         self.update_task_queue.put((self._switch_node_to_ref_task, [node_name, node_install_path, target_commit_id], {}))
+
+         modal_window.destroy() # Close the modal after queuing the task
+         self.root.after(0, self._update_ui_state) # Update UI state
+
+
+    # REQUIREMENT 5: Task to switch node to a specific ref (commit/tag/branch)
+    def _switch_node_to_ref_task(self, node_name, node_install_path, target_ref):
+         """Task to switch an installed node to a specific git reference (commit/tag/branch). Runs in worker thread."""
+         # Check for stop event
+         if self.stop_event.is_set():
+              self.log_to_gui("Update", f"节点 '{node_name}' 切换版本任务已取消。", "warn"); return
+
+         self.log_to_gui("Update", f"正在将节点 '{node_name}' 切换到版本 (引用: {target_ref[:8]})...", "info") # Use short ref for log
+
+         try:
+             # Ensure it's a valid git repo
+             if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
+                  self.log_to_gui("Update", f"节点目录 '{node_install_path}' 不是有效的 Git 仓库，无法切换版本。", "error")
+                  raise Exception(f"节点目录不是有效的 Git 仓库: {node_install_path}")
+
+             # Check if there are local changes that would be overwritten by checkout/reset
+             stdout_status, stderr_status, returncode_status = self._run_git_command(["status", "--porcelain"], cwd=node_install_path, timeout=10)
+             if returncode_status == 0 and stdout_status.strip():
+                  # This check should ideally be done in the GUI thread before queuing if blocking is desired.
+                  # Since it's in the worker, we just log a warning. The checkout might fail or require --force.
+                  self.log_to_gui("Update", f"节点 '{node_name}' 存在未提交的本地修改，切换版本可能会覆盖。", "warn")
+                  # Proceed, relying on `git checkout` behavior or adding --force
+
+
+             # Check for stop event
+             if self.stop_event.is_set(): raise threading.ThreadExit
+
+             # Perform git checkout to the target reference
+             # Use --force to potentially discard local changes (user was warned)
+             self.log_to_gui("Update", f"执行 Git checkout --force {target_ref[:8]} for '{node_name}'...", "info")
+             stdout, stderr, returncode = self._run_git_command(["checkout", "--force", target_ref], cwd=node_install_path, timeout=60)
+             if returncode != 0:
+                  self.log_to_gui("Update", f"Git checkout 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
+                  # Add specific checks for common errors like 'pathspec did not match any file(s) known to git'
+                  if "did not match any file(s) known to git" in (stderr.lower() if stderr else ""):
+                       error_detail = "目标引用不存在或已损坏。"
+                  elif "could not switch to" in (stderr.lower() if stderr else ""):
+                       error_detail = "无法切换分支，可能存在冲突或本地未跟踪文件阻止。"
+                  else:
+                       error_detail = "未知 Git 错误。"
+
+                  raise Exception(f"Git checkout {target_ref[:8]} 失败: {error_detail}")
+
+             self.log_to_gui("Update", f"Git checkout {target_ref[:8]} 完成 for '{node_name}'.", "info")
+
+
+             # Check for stop event
+             if self.stop_event.is_set(): raise threading.ThreadExit
+
+             # --- Update submodules ---
+             if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
+                 self.log_to_gui("Update", f"执行 Git submodule update for '{node_name}'...", "info")
+                 stdout, stderr, returncode = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180) # Added --force
+                 if returncode != 0:
+                      self.log_to_gui("Update", f"Git submodule update 失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
+                      # Not critical error? Continue but log.
+                 else:
+                      self.log_to_gui("Update", f"Git submodule update 完成 for '{node_name}'.", "info")
+             else:
+                  self.log_to_gui("Update", f"'{node_name}' 目录未找到 .gitmodules 文件，跳过 submodule update。", "info")
+
+             # Check for stop event
+             if self.stop_event.is_set(): raise threading.ThreadExit
+
+
+             # --- Re-install Node-specific Python dependencies (if requirements.txt exists) ---
+             python_exe = self.python_exe_var.get()
+             requirements_path = os.path.join(node_install_path, "requirements.txt")
+             if python_exe and os.path.isfile(python_exe) and os.path.isdir(node_install_path) and os.path.isfile(requirements_path):
+                  self.log_to_gui("Update", f"执行 pip 安装节点依赖 for '{node_name}'...", "info")
+                  pip_cmd = [python_exe, "-m", "pip", "install", "-r", requirements_path, "--upgrade"]
+                  # Add --user if not in venv (check similar to main body)
+                  if platform.system() != "Windows" and sys.prefix == sys.base_prefix:
+                       pip_cmd.append("--user")
+                       self.log_to_gui("Update", f"节点 '{node_name}': 未检测到Python虚拟环境，使用 --user 选项安装依赖。", "warn")
+
+                  pip_cmd.extend(["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121", "--extra-index-url", "https://download.pytorch.org/whl/rocm5.7"])
+
+
+                  stdout, stderr, returncode = self._run_git_command(
+                       pip_cmd,
+                       cwd=node_install_path, timeout=180 # Allow more time
+                  )
+                  if returncode != 0:
+                       self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr.strip() if stderr else '未知错误'}", "error")
+                       self.root.after(0, lambda name=node_name: messagebox.showwarning("节点依赖安装失败 / Node Dependency Install Failed", f"节点 '{name}' 的 Python 依赖安装失败，请手动检查。\n请查看后台日志获取详情。", parent=self.root))
+                  else:
+                       self.log_to_gui("Update", f"Pip 安装节点依赖完成 for '{node_name}'.", "info")
+             else:
+                  if os.path.isdir(node_install_path) and os.path.exists(os.path.join(node_install_path, ".git")): # Only log info if it's a potentially valid node
+                       self.log_to_gui("Update", f"节点 '{node_name}' 未找到 requirements.txt 或 Python 无效，跳过依赖安装。", "info")
+
+
+             # Success message
+             self.log_to_gui("Update", f"节点 '{node_name}' 已成功切换到版本 (引用: {target_ref[:8]})。", "info")
+             self.root.after(0, lambda name=node_name, ref=target_ref[:8]: messagebox.showinfo("切换完成 / Switch Complete", f"节点 '{name}' 已成功切换到版本: {ref}", parent=self.root))
+
+
+         except threading.ThreadExit:
+              self.log_to_gui("Update", f"节点 '{node_name}' 切换版本任务已取消。", "warn")
+         except Exception as e:
+             error_msg = f"节点 '{node_name}' 切换版本失败: {e}"
+             self.log_to_gui("Update", error_msg, "error")
+             self.root.after(0, lambda msg=error_msg: messagebox.showerror("切换失败 / Switch Failed", msg, parent=self.root))
+         finally:
+             # Always refresh list and update UI state after task finishes
+             self.root.after(0, self.refresh_node_list)
+             # UI state update is handled by the worker thread's finally block
+
 
     # --- Error Analysis Methods ---
 
     def run_diagnosis(self):
         """Captures ComfyUI logs and sends them to the configured API for analysis."""
-        # No need to queue this, it's usually a quick network call and UI update
-        # However, if the API call is long, it might block the UI.
-        # Let's run the API call in a separate thread, but keep the log capture in the main thread.
         # Check if an update task is running
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中，无法运行诊断。", "warn"); return
+
+        # Check if ComfyUI is running - optional, but diagnosis is most useful with running logs
+        # if not self._is_comfyui_running() and not self.comfyui_externally_detected:
+        #      messagebox.showwarning("ComfyUI未运行", "ComfyUI 后台未运行，诊断结果可能不准确或无日志。", parent=self.root)
+        #      # Decide if we should still proceed or return. Let's proceed to allow analyzing old logs.
 
 
         api_endpoint = self.error_api_endpoint_var.get().strip()
@@ -2591,7 +3162,7 @@ class ComLauncherApp:
 
 
     def _run_diagnosis_task(self, api_endpoint, api_key, comfyui_logs):
-        """Task to send logs to API and display analysis."""
+        """Task to send logs to API and display analysis. Runs in worker thread."""
         try:
             # TODO: Implement actual API call logic (using requests library):
             # 1. Prepare the data payload (usually JSON) containing the logs.
