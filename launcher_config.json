@@ -1,7 +1,6 @@
 {
     "comfyui_dir": "D:\\Program\\ComfyUI_Program\\ComfyUI",
     "python_exe": "D:\\Program\\ComfyUI_Program\\python_embeded\\python.exe",
-    "comfyui_workflows_dir": "D:\\Program\\ComfyUI_Program\\ComfyUI\\user\\default\\workflows",
     "comfyui_api_port": "8188",
     "vram_mode": "高负载(8GB以上)",
     "ckpt_precision": "半精度(FP16)",
