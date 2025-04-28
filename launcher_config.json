@@ -13,6 +13,6 @@
     "git_exe_path": "D:\\Program\\ComfyUI_Program\\ComfyUI\\git\\cmd\\git.exe",
     "main_repo_url": "https://gitee.com/AIGODLIKE/ComfyUI.git",
     "node_config_url": "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json",
-    "error_api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17",
+    "error_api_endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent",
     "error_api_key": ""
 }

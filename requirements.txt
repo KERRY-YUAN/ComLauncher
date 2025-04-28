@@ -1,5 +1,11 @@
-# This file lists the minimum required Python packages to run the launcher.py script.
-# Based on launcher.py Ver. 3.0.0
-# python -m venv venv （如无，手动添加venv环境）
-
+# python -m venv venv (ComLauncher自带)
+ 
 requests
+
+# Then, install the correct PyTorch version / 然后，安装正确的 PyTorch 版本
+# (CUDA 11.8 示例，替换为用户正确的命令)
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# (CUDA 12.4示例，替换为用户正确的命令)
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# (CUDA 12.6示例，替换为用户正确的命令)
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126   
