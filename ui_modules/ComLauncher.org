@@ -1,22 +1,22 @@
 @@@@@@@@@ComLauncher后台日志
-[2025-05-07 17:45:43] [Management] 尝试加载持久化数据...
-[2025-05-07 17:45:43] [Management] 从 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json 加载了 84 条本体版本数据。
-[2025-05-07 17:45:43] [Management] 从 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json 加载了 55 条本地节点和 55 条全部节点数据。
-[2025-05-07 17:45:43] [Management] 持久化数据加载完成，触发 UI 状态更新。
-[2025-05-07 17:45:43] [Management] 本体版本列表已在 GUI 中显示 (84 条)。
-[2025-05-07 17:45:43] [Management] 节点列表已在 GUI中显示 (55 条)。
-[2025-05-07 17:45:44] [Launcher] 开始加载更新管理数据...
-[2025-05-07 17:45:44] [Launcher] 执行更新任务: _run_initial_background_tasks
-[2025-05-07 17:45:44] [Launcher] 执行后台数据加载 (本体版本和节点列表)...
-[2025-05-07 17:45:44] [Management] 刷新本体版本列表...
-[2025-05-07 17:45:44] [Management] 尝试从 https://github.com/comfyanonymous/ComfyUI.git 刷新远程版本列表...
-[2025-05-07 17:45:44] [Management] 执行 Git fetch origin --prune --tags -f...
-[2025-05-07 17:45:44] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' fetch origin --prune --tags -f
-[2025-05-07 17:45:44] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
-[2025-05-07 17:45:46] [Management] 获取远程分支信息...
-[2025-05-07 17:45:46] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' for-each-ref refs/remotes/origin/ --sort=-committerdate '--format=%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)'
-[2025-05-07 17:45:46] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
-[2025-05-07 17:45:46] [Git] origin 271c9c5b9eb027c682161ed7848bbf640253f973 2025-05-06T09:52:37-04:00 Better mem estimation for the LTXV 13B model. (#7963)
+[2025-05-07 18:07:41] [Management] 尝试加载持久化数据...
+[2025-05-07 18:07:41] [Management] 从 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json 加载了 84 条本体版本数据。
+[2025-05-07 18:07:41] [Management] 从 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json 加载了 55 条本地节点和 55 条全部节点数据。
+[2025-05-07 18:07:41] [Management] 持久化数据加载完成，触发 UI 状态更新。
+[2025-05-07 18:07:41] [Management] 本体版本列表已在 GUI 中显示 (84 条)。
+[2025-05-07 18:07:41] [Management] 节点列表已在 GUI中显示 (55 条)。
+[2025-05-07 18:07:41] [Launcher] 开始加载更新管理数据...
+[2025-05-07 18:07:41] [Launcher] 执行更新任务: _run_initial_background_tasks
+[2025-05-07 18:07:41] [Launcher] 执行后台数据加载 (本体版本和节点列表)...
+[2025-05-07 18:07:41] [Management] 刷新本体版本列表...
+[2025-05-07 18:07:42] [Management] 尝试从 https://github.com/comfyanonymous/ComfyUI.git 刷新远程版本列表...
+[2025-05-07 18:07:42] [Management] 执行 Git fetch origin --prune --tags -f...
+[2025-05-07 18:07:42] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' fetch origin --prune --tags -f
+[2025-05-07 18:07:42] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
+[2025-05-07 18:07:44] [Management] 获取远程分支信息...
+[2025-05-07 18:07:44] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' for-each-ref refs/remotes/origin/ --sort=-committerdate '--format=%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)'
+[2025-05-07 18:07:44] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
+[2025-05-07 18:07:44] [Git] origin 271c9c5b9eb027c682161ed7848bbf640253f973 2025-05-06T09:52:37-04:00 Better mem estimation for the LTXV 13B model. (#7963)
 origin/master 271c9c5b9eb027c682161ed7848bbf640253f973 2025-05-06T09:52:37-04:00 Better mem estimation for the LTXV 13B model. (#7963)
 origin/desktop-release-may062025 1271c4ef9df2b4eb037688da514f63e1bd8bd727 2025-05-06T04:23:00-04:00 More API Nodes (#7956)
 origin/prep-branch 72ee7a22ee99f34ef592feef6b861a9c857bdf23 2025-05-06T03:08:44-05:00 Bump frontend to 1.18.9
@@ -46,10 +46,10 @@ origin/model_management 01110de8a311f6cca7ef91c32441134c756b75ba 2025-02-21T17:5
 origin/webfiltered-patch-1 9111457d5123606876f617405a27a09334b1219c 2025-02-21T17:46:09+11:00 Update frontend release schedule in README.
 origin/model-paths-helper 095d8671476ebb7834d326ac31127cd5f3e27303 2025-02-09T07:02:57-05:00 Remove useless function.
 origin/base-path-env-var 17b70728ec86aa571497fbb18b22201d7b620705 2025-01-23T18:09:15+11:00 Allow override of models base path via env var
-[2025-05-07 17:45:46] [Management] 获取标签信息...
-[2025-05-07 17:45:46] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' for-each-ref refs/tags/ --sort=-taggerdate '--format=%(refname:short) %(objectname) %(taggerdate:iso-strict) %(contents:subject)'
-[2025-05-07 17:45:46] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
-[2025-05-07 17:45:46] [Git] v0.0.2 bb775157355f7bfd93f3a89deeb5904153365ba1 2024-07-19T16:37:04-07:00 v0.0.2
+[2025-05-07 18:07:44] [Management] 获取标签信息...
+[2025-05-07 18:07:44] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' for-each-ref refs/tags/ --sort=-taggerdate '--format=%(refname:short) %(objectname) %(taggerdate:iso-strict) %(contents:subject)'
+[2025-05-07 18:07:44] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI
+[2025-05-07 18:07:44] [Git] v0.0.2 bb775157355f7bfd93f3a89deeb5904153365ba1 2024-07-19T16:37:04-07:00 v0.0.2
 latest 2ec6d1c6e364ab92e3d8149a83873ac47c797248  Don't import custom nodes when the folder ends with .disabled
 v0.0.1 4ca9b9cc29fefaa899cba67d61a8252ae9f16c0d  Add Github Workflow for releasing stable versions and standalone bundle. (#3949)
 v0.0.3 1d47ec38d80bad2d57391105f3d34919728e66ad  Set torch version to be 2.3.1 for v0.0.3
@@ -103,45 +103,22 @@ v0.3.6 8e4118c0de2c23098db4601fc25a4bd55868d82b  make dpm_2_ancestral work with 
 v0.3.7 9a616b81c15cec7f5ddcbc12e349f1adc03fad67  Add rescaling_scale from STG to SkipLayerGuidanceDiT.
 v0.3.8 9f4b181ab38b246961c5a51994a8357e62634de1  Add fast previews for hunyuan video.
 v0.3.9 418eb7062dcbd5c68f869527a7bc34cff55ca87e  Support new LTXV VAE.
-[2025-05-07 17:45:46] [Management] 当前本地 Commit 与远程已同步或已在列表中。
-[2025-05-07 17:45:46] [Management] 本体版本数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json
-[2025-05-07 17:45:46] [Management] 节点列表数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json
-[2025-05-07 17:45:46] [Management] 本体版本列表刷新完成。找到 84 条记录。
-[2025-05-07 17:45:46] [Management] 刷新节点列表...
-[2025-05-07 17:45:46] [Management] 本体版本列表已在 GUI 中显示 (84 条)。
-[2025-05-07 17:45:46] [Management] 当前搜索词: ''
-[2025-05-07 17:45:46] [Management] 扫描本地 custom_nodes 目录: D:\Program\ComfyUI_Program\ComfyUI\custom_nodes...
-[2025-05-07 17:46:00] [Management] 尝试从 https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json 获取节点配置...
-[2025-05-07 17:46:02] [Management] 已获取在线节点配置 (Manager格式，共 2400 条)。
-[2025-05-07 17:46:02] [Management] 本体版本数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json
-[2025-05-07 17:46:02] [Management] 节点列表数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json
-[2025-05-07 17:46:02] [Management] 节点列表刷新完成。已显示 55 个节点。
-[2025-05-07 17:46:02] [Launcher] 后台数据加载完成。
-[2025-05-07 17:46:02] [Launcher] 更新任务 '_run_initial_background_tasks' 完成。
-[2025-05-07 17:46:02] [Management] 节点列表已在 GUI中显示 (55 条)。
-[2025-05-07 17:46:04] [Launcher] 将获取节点 'ComfyUI-Advanced-ControlNet' 版本历史任务添加到队列...
-[2025-05-07 17:46:04] [Launcher] 执行更新任务: _node_history_fetch_task
-[2025-05-07 17:46:04] [Management] 正在获取节点 'ComfyUI-Advanced-ControlNet' 的版本历史...
-[2025-05-07 17:46:04] [Management] 当前本地 Commit ID: da254b70
-[2025-05-07 17:46:04] [Management] 执行 Git fetch origin --prune --tags -f for 'ComfyUI-Advanced-ControlNet'...
-[2025-05-07 17:46:04] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' fetch origin --prune --tags -f
-[2025-05-07 17:46:04] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI\custom_nodes\ComfyUI-Advanced-ControlNet
-[2025-05-07 17:46:05] [Git] 执行: 'D:\Program\ComfyUI_Program\ComfyUI\git\cmd\git.exe' for-each-ref refs/ --sort=-committerdate '--format=%(refname) %(objectname) %(committerdate:iso-strict) %(contents:subject)'
-[2025-05-07 17:46:05] [Git] 工作目录: D:\Program\ComfyUI_Program\ComfyUI\custom_nodes\ComfyUI-Advanced-ControlNet
-[2025-05-07 17:46:05] [Git] refs/heads/main da254b700db562a22e03358b933c85a9a3392540 2025-03-04T20:40:13-06:00 Merge pull request #223 from Kosinkadink/multigpu
-refs/remotes/origin/HEAD da254b700db562a22e03358b933c85a9a3392540 2025-03-04T20:40:13-06:00 Merge pull request #223 from Kosinkadink/multigpu
-refs/remotes/origin/main da254b700db562a22e03358b933c85a9a3392540 2025-03-04T20:40:13-06:00 Merge pull request #223 from Kosinkadink/multigpu
-refs/remotes/origin/develop 3270044067b3ac8221b44201ab4dda80512b1538 2025-01-31T04:00:29-06:00 Merge branch 'main' into develop
-refs/tags/v1.0.5 bf16347fd09ec14f8e6e9d5b5f31bb7561395275 2024-06-13T07:57:15-05:00 Merge pull request #122 from Kosinkadink/develop
-refs/remotes/origin/viewopts_attempt ed5deb30de7c30df788d3378b510fbf4f8db415d 2024-05-26T14:36:36-05:00 Attempt at view options for SparseCtrl, but seems to not work properly
-refs/heads/develop 9fcc3b664d89b47dff5e068490f334f35f07b95f 2024-01-10T23:55:41-06:00 Apply ComfyUI update for fixing issue with multiple t2iadapters with batched images
-refs/tags/v1.1.0 7e5578ef8f5a0909a6157db65c6aa9cc81734d45  sd3 support added from vanilla ComfyUI, adapts to controlnet changes from vanilla ComfyUI
-[2025-05-07 17:46:05] [Management] 节点 'ComfyUI-Advanced-ControlNet' 版本历史获取完成。找到 6 条记录。
-[2025-05-07 17:46:05] [Launcher] 更新任务 '_node_history_fetch_task' 完成。
-[2025-05-07 17:46:07] [Management] Cleaning up modal state...
-[2025-05-07 17:46:07] [Management] Modal window destroyed.
-[2025-05-07 17:46:07] [Management] Modal state variables cleared.
-[2025-05-07 17:46:08] [Management] UI update scheduled after modal cleanup.
+[2025-05-07 18:07:44] [Management] 当前本地 Commit 与远程已同步或已在列表中。
+[2025-05-07 18:07:44] [Management] 本体版本数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json
+[2025-05-07 18:07:44] [Management] 节点列表数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json
+[2025-05-07 18:07:44] [Management] 本体版本列表刷新完成。找到 84 条记录。
+[2025-05-07 18:07:44] [Management] 刷新节点列表...
+[2025-05-07 18:07:44] [Management] 本体版本列表已在 GUI 中显示 (84 条)。
+[2025-05-07 18:07:44] [Management] 当前搜索词: ''
+[2025-05-07 18:07:44] [Management] 扫描本地 custom_nodes 目录: D:\Program\ComfyUI_Program\ComfyUI\custom_nodes...
+[2025-05-07 18:07:58] [Management] 尝试从 https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json 获取节点配置...
+[2025-05-07 18:07:59] [Management] 已获取在线节点配置 (Manager格式，共 2400 条)。
+[2025-05-07 18:07:59] [Management] 本体版本数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\main_body_versions.json
+[2025-05-07 18:07:59] [Management] 节点列表数据已保存到 D:\Program\ComfyUI_Program\github\ComLauncher\ui_modules\nodes_list.json
+[2025-05-07 18:07:59] [Management] 节点列表刷新完成。已显示 55 个节点。
+[2025-05-07 18:07:59] [Launcher] 后台数据加载完成。
+[2025-05-07 18:07:59] [Launcher] 更新任务 '_run_initial_background_tasks' 完成。
+[2025-05-07 18:07:59] [Management] 节点列表已在 GUI中显示 (55 条)。
 
 @@@@@@@@@ComfyUI日志
 （无）

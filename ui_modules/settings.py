@@ -29,15 +29,18 @@ class SettingsTab:
         widget_padx = 5
         # Removed fixed label_min_width
 
-        # --- Folder Access Buttons (Bug 1 Fix: Wrap in LabelFrame) ---
+        # --- Folder Access Buttons (Bug 1 Fix: Wrap in LabelFrame and configure column weight) ---
         folder_group = ttk.LabelFrame(self.frame, text=" 文件夹快捷方式 / Folder Shortcuts ", padding=(10, 5), style='Folder.TLabelframe') # Added LabelFrame and style
         folder_group.grid(row=current_row, column=0, sticky="ew", padx=frame_padx, pady=frame_pady) # Grid the LabelFrame
 
+        # FIX: Configure the column within the folder_group LabelFrame to expand
+        folder_group.columnconfigure(0, weight=1) # Allow the single column containing folder_button_frame to expand
+
         folder_button_frame = ttk.Frame(folder_group, style='Settings.TFrame') # Put the button frame inside the LabelFrame
-        # The button frame should now expand within the LabelFrame
+        # The button frame should now expand within the LabelFrame's column 0
         folder_button_frame.grid(row=0, column=0, sticky="ew", padx=0, pady=0) # No internal padding needed here
 
-        folder_button_frame.columnconfigure((0, 1, 2, 3, 4, 5), weight=1) # Equal weight for buttons
+        folder_button_frame.columnconfigure((0, 1, 2, 3, 4, 5), weight=1) # Equal weight for buttons within the frame
         button_pady_reduced = 1
         button_padx_reduced = 3
 
