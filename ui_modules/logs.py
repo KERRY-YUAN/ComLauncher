@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: ui_modules/logs.py
-# Version: Kerry, Ver. 2.6.1 - Logs Tab Module
+# Version: Kerry, Ver. 2.6.2 - Logs Tab Module
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext
@@ -36,6 +36,7 @@ class LogsTab:
         launcher_log_frame.columnconfigure(0, weight=1); launcher_log_frame.rowconfigure(0, weight=1)
         self.logs_notebook.add(launcher_log_frame, text=' ComLauncher日志 / Launcher Logs ')
         # Pass widget references back to app_instance for log processing
+        # Use app instance constants for font/colors
         self.app.launcher_log_text = scrolledtext.ScrolledText(launcher_log_frame, wrap=tk.WORD, state=tk.DISABLED, font=(self.app.FONT_FAMILY_MONO, self.app.FONT_SIZE_MONO), bg=self.app.TEXT_AREA_BG, fg=self.app.FG_STDOUT, relief=tk.FLAT, borderwidth=1, bd=1, highlightthickness=1, highlightbackground=self.app.BORDER_COLOR, insertbackground="white")
         self.app.launcher_log_text.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
         self.app.setup_text_tags(self.app.launcher_log_text) # Apply color tags using app's method
@@ -45,6 +46,7 @@ class LogsTab:
         comfyui_log_frame.columnconfigure(0, weight=1); comfyui_log_frame.rowconfigure(0, weight=1)
         self.logs_notebook.add(comfyui_log_frame, text=' ComfyUI日志 / ComfyUI Logs ')
         # Pass widget references back to app_instance for log processing
+        # Use app instance constants for font/colors
         self.app.main_output_text = scrolledtext.ScrolledText(comfyui_log_frame, wrap=tk.WORD, state=tk.DISABLED, font=(self.app.FONT_FAMILY_MONO, self.app.FONT_SIZE_MONO), bg=self.app.TEXT_AREA_BG, fg=self.app.FG_STDOUT, relief=tk.FLAT, borderwidth=1, bd=1, highlightthickness=1, highlightbackground=self.app.BORDER_COLOR, insertbackground="white")
         self.app.main_output_text.grid(row=0, column=0, sticky="nsew", padx=1, pady=1)
         self.app.setup_text_tags(self.app.main_output_text) # Apply color tags using app's method

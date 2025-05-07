@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: launcher.py
-# Version: Kerry, Ver. 2.6.1 (Refactored Modular Design + Persistence - Fixed Attribute/Type Errors)
+# Version: Kerry, Ver. 2.6.2 (Fixed Bugs + Node Double Click)
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, font as tkfont, filedialog, Toplevel
@@ -72,7 +72,7 @@ DEFAULT_ERROR_API_ENDPOINT = ""
 DEFAULT_ERROR_API_KEY = ""
 
 # MOD: Version Updated
-VERSION_INFO = "Kerry, Ver. 2.6.1"
+VERSION_INFO = "Kerry, Ver. 2.6.2"
 
 # Special marker for queue
 _COMFYUI_READY_MARKER_ = "_COMFYUI_IS_READY_FOR_BROWSER_\n"
@@ -196,7 +196,7 @@ class ComLauncherApp:
         self.load_config()
         self.update_derived_paths()
         self.setup_styles()
-        self.setup_ui()
+        self.setup_ui() # This will create module instances and UI elements
         self._setup_auto_save()
 
         # Start background tasks
@@ -206,9 +206,11 @@ class ComLauncherApp:
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
-        # Set initial UI state and start initial background data loading
-        self._update_ui_state()
-        self.start_initial_data_load()
+        # Set initial UI state and start initial background data loading *after* UI is ready
+        self.root.after(0, self._update_ui_state)
+        # Delay the initial data load slightly to ensure UI is fully initialized and updated first (Fix for Bug 2 & 3)
+        self.root.after(500, self.start_initial_data_load)
+
 
     # --- Configuration Handling (Remains in launcher.py) ---
     def load_config(self):
@@ -407,6 +409,12 @@ class ComLauncherApp:
         if ckpt_prec == "半精度(FP16)":
             self.comfyui_base_args.append("--force-fp16")
 
+        vae_prec = self.config.get("vae_precision", DEFAULT_VAE_PRECISION)
+        if vae_prec == "半精度(FP16)":
+            self.comfyui_base_args.append("--fp16-vae")
+        elif vae_prec == "半精度(BF16)":
+            self.comfyui_base_args.append("--bf16-vae")
+
         clip_prec = self.config.get("clip_precision", DEFAULT_CLIP_PRECISION)
         if clip_prec == "半精度(FP16)":
             self.comfyui_base_args.append("--fp16-text-enc")
@@ -425,19 +433,9 @@ class ComLauncherApp:
         elif unet_prec == "FP8 (E5M2)":
             self.comfyui_base_args.append("--fp8_e5m2-unet")
 
-        vae_prec = self.config.get("vae_precision", DEFAULT_VAE_PRECISION)
-        if vae_prec == "半精度(FP16)":
-            self.comfyui_base_args.append("--fp16-vae")
-        elif vae_prec == "半精度(BF16)":
-            self.comfyui_base_args.append("--bf16-vae")
-
-        if self.config.get("cuda_malloc", DEFAULT_CUDA_MALLOC) == "启用": # Corrected logic: only add flag if ENABLED
-             # `--disable-cuda-malloc` is the flag. Default is usually enabled.
-             # So if the option is "禁用", we add the disable flag.
-             pass # Do nothing if "启用"
-        elif self.config.get("cuda_malloc", DEFAULT_CUDA_MALLOC) == "禁用":
+        # Corrected logic for --disable-cuda-malloc
+        if self.config.get("cuda_malloc", DEFAULT_CUDA_MALLOC) == "禁用":
             self.comfyui_base_args.append("--disable-cuda-malloc")
-
 
         if self.config.get("ipex_optimization", DEFAULT_IPEX_OPTIMIZATION) == "禁用":
             self.comfyui_base_args.append("--disable-ipex")
@@ -523,7 +521,8 @@ class ComLauncherApp:
         except tk.TclError:
             print("[Launcher WARNING] 'clam' theme not available, using default theme.")
 
-        neutral_button_bg=self.BG_COLOR; neutral_button_fg=self.FG_COLOR; n_active_bg="#6e6e6e"; n_pressed_bg="#7f7f7f"; n_disabled_bg="#4a5a6a"; n_disabled_fg=self.FG_MUTED # Use instance constants here
+        # Use instance constants here
+        neutral_button_bg=self.BG_COLOR; neutral_button_fg=self.FG_COLOR; n_active_bg="#6e6e6e"; n_pressed_bg="#7f7f7f"; n_disabled_bg="#4a5a6a"; n_disabled_fg=self.FG_MUTED
 
         self.style.configure('.', background=self.BG_COLOR, foreground=self.FG_COLOR, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL), bordercolor=self.BORDER_COLOR)
         self.style.map('.', background=[('active', '#4f4f4f'), ('disabled', '#404040')], foreground=[('disabled', self.FG_MUTED)])
@@ -537,12 +536,15 @@ class ComLauncherApp:
         self.style.configure('Modal.TFrame', background=self.BG_COLOR)
         self.style.configure('Version.TFrame', background=self.BG_COLOR)
 
+        # MOD1: Styles for modal row backgrounds
         row_bg1, row_bg2 = self.TEXT_AREA_BG, "#282828"
         self.style.configure('ModalRowOdd.TFrame', background=row_bg1)
         self.style.configure('ModalRowEven.TFrame', background=row_bg2)
 
 
         self.style.configure('TLabelframe', background=self.BG_COLOR, foreground=self.FG_COLOR, bordercolor=self.BORDER_COLOR, relief=tk.GROOVE)
+        # MOD1: Added style for Folder LabelFrame in Settings
+        self.style.configure('Folder.TLabelframe', background=self.BG_COLOR, foreground=self.FG_COLOR, bordercolor=self.BORDER_COLOR, relief=tk.GROOVE)
         self.style.configure('TLabelframe.Label', background=self.BG_COLOR, foreground=self.FG_COLOR, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL, 'italic'))
 
         self.style.configure('TLabel', background=self.BG_COLOR, foreground=self.FG_COLOR)
@@ -552,6 +554,7 @@ class ComLauncherApp:
         self.style.configure('Highlight.TLabel', background=self.BG_COLOR, foreground=self.FG_HIGHLIGHT, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL, self.FONT_WEIGHT_BOLD))
         self.style.configure('ModalHeader.TLabel', background=self.BG_COLOR, foreground=self.FG_COLOR, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL, self.FONT_WEIGHT_BOLD))
 
+        # MOD1: Styles for labels within modal rows
         self.style.configure('ModalRowOdd.TLabel', background=row_bg1, foreground=self.FG_COLOR)
         self.style.configure('ModalRowEven.TLabel', background=row_bg2, foreground=self.FG_COLOR)
         self.style.configure('ModalRowOddHighlight.TLabel', background=row_bg1, foreground=self.FG_HIGHLIGHT, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL, self.FONT_WEIGHT_BOLD))
@@ -573,8 +576,11 @@ class ComLauncherApp:
         self.style.map("Tab.TButton", background=[('pressed', tab_n_pressed_bg), ('active', tab_n_active_bg), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
         self.style.configure("TabAccent.TButton", padding=tab_pady, font=tab_fnt, background=self.ACCENT_COLOR, foreground="white")
         self.style.map("TabAccent.TButton", background=[('pressed', self.ACCENT_ACTIVE), ('active', '#006ae0'), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
-        self.style.configure("Browse.TButton", padding=(4, 2), font=tab_fnt, background=tab_neutral_bg, foreground=neutral_button_fg)
+
+        # MOD1: Modified Browse.TButton style to have a border for visual "box" effect (Bug 1)
+        self.style.configure("Browse.TButton", padding=(4, 2), font=tab_fnt, background=tab_neutral_bg, foreground=neutral_button_fg, borderwidth=1, relief='solid')
         self.style.map("Browse.TButton", background=[('pressed', tab_n_pressed_bg), ('active', tab_n_active_bg), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
+
         self.style.configure("Modal.TButton", padding=(4, 2), font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL-1), background=tab_neutral_bg, foreground=neutral_button_fg)
         self.style.map("Modal.TButton", background=[('pressed', tab_n_pressed_bg), ('active', tab_n_active_bg), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
         self.style.configure("Version.TButton", padding=(2, 1), font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL - 1), background=self.BG_COLOR, foreground=self.FG_MUTED, relief=tk.FLAT, borderwidth=0)
@@ -626,8 +632,8 @@ class ComLauncherApp:
         version_button.grid(row=0, column=1, sticky="e")
 
         # --- Delegate Tab Setup to Modules ---
-        self.settings_frame = ttk.Frame(self.notebook, padding="15", style='Settings.TFrame')
         # Pass the app instance to the module's setup function
+        self.settings_frame = ttk.Frame(self.notebook, padding="15", style='Settings.TFrame')
         self.modules['settings'] = settings.setup_settings_tab(self.settings_frame, self)
         self.notebook.add(self.settings_frame, text=' 设置 / Settings ')
 
@@ -648,8 +654,10 @@ class ComLauncherApp:
         self.notebook.add(self.analysis_frame, text=' 分析 / Analysis ')
 
 
+        # Default to Settings tab initially
         self.notebook.select(self.settings_frame)
 
+        # Trace API entry fields to update UI state (enabled/disabled diagnose button)
         self.error_api_endpoint_var.trace_add('write', lambda *args: self.root.after(0, self._update_ui_state))
         self.error_api_key_var.trace_add('write', lambda *args: self.root.after(0, self._update_ui_state))
 
@@ -667,7 +675,9 @@ class ComLauncherApp:
             text_widget.tag_config("error", foreground=self.FG_STDERR, font=(self.FONT_FAMILY_MONO, self.FONT_SIZE_MONO, 'bold'))
             text_widget.tag_config("api_output", foreground=self.FG_API)
             text_widget.tag_config("cmd", foreground=self.FG_CMD, font=(self.FONT_FAMILY_MONO, self.FONT_SIZE_MONO, 'bold'))
+            # Use root.after for tag_config that might involve styling that needs theme lookup
             self.root.after(0, lambda: text_widget.tag_config("highlight", foreground=self.FG_HIGHLIGHT, font=(self.FONT_FAMILY_UI, self.FONT_SIZE_NORMAL, self.FONT_WEIGHT_BOLD)))
+            # Add tag for persisted items in Treeviews
             self.root.after(0, lambda: text_widget.tag_config("persisted", foreground=self.FG_MUTED))
 
         except tk.TclError as e:
@@ -679,17 +689,21 @@ class ComLauncherApp:
             return
         try:
             text_widget.config(state=tk.NORMAL)
+            # Ensure tag exists before inserting
             if tag not in text_widget.tag_names():
                 tag = "stdout"
 
+            # Add timestamp prefix to Launcher logs only (MOD6)
             if text_widget == self.launcher_log_text:
                  timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                  line = f"[{timestamp}] {line}"
 
             text_widget.insert(tk.END, line, (tag,))
+            # Always scroll to the end after inserting text
             text_widget.see(tk.END)
-            # Check if analysis module and user_request_text exist before accessing
-            is_user_request = self.modules.get('analysis') and hasattr(self.modules['analysis'], 'user_request_text') and text_widget == self.modules['analysis'].user_request_text
+            # MOD5: Ensure ScrolledText widgets intended for user input remain normal
+            # Access user_request_text safely via the analysis module instance
+            is_user_request = self.modules.get('analysis') and hasattr(self.modules['analysis'], 'user_request_text') and self.modules['analysis'].user_request_text and text_widget == self.modules['analysis'].user_request_text
             if not is_user_request:
                  text_widget.config(state=tk.DISABLED)
         except tk.TclError as e:
@@ -697,54 +711,73 @@ class ComLauncherApp:
         except Exception as e:
              print(f"[Launcher ERROR] Unexpected error inserting output: {e}")
 
+
     def log_to_gui(self, source, message, level="info", target_override=None):
         """
         Adds a message to the appropriate output queue based on the source.
+        source: Module/origin (e.g., "Launcher", "ComfyUI", "Git", "Update", "Fix", "ErrorAnalysis")
+        message: The log message string.
+        level: Log level ("info", "warn", "error", "cmd", "api_output", "stdout", "stderr") used for tagging.
+        target_override: Force message to a specific widget queue ("Launcher" or "ComfyUI").
         """
-        if not isinstance(message, str):
+        if not isinstance(message, str): # Ensure message is a string
             message = str(message)
 
         if not message.endswith('\n'):
             message += '\n'
 
-        target_queue = self.launcher_log_queue
+        # Determine the target queue and widget
+        target_queue = self.launcher_log_queue # Default to Launcher log
+        # Route ErrorAnalysis logs to launcher queue unless specifically stdout/stderr (handled by process_output_queues)
         if source == "ComfyUI" or target_override == "ComfyUI":
             target_queue = self.comfyui_output_queue
-        elif source in ["ErrorAnalysis", "Analysis"] and level not in ["stdout", "stderr"]:
-             target_queue = self.launcher_log_queue
+        # Note: Routing Analysis/ErrorAnalysis messages to the correct text area
+        # is now handled in process_output_queues by checking the prefix.
 
 
-        tag = level
-        if level == "stdout" and source != "ComfyUI":
+        # Determine the tag based on level and source
+        tag = level # Use level directly as the primary tag indicator
+        if level == "stdout" and source not in ["ComfyUI", "Git"]: # Non-ComfyUI/Git stdout -> treat as info
              tag = "info"
-        elif level == "stderr":
+        elif level == "stderr": # Always use stderr tag for errors
              tag = "stderr"
+        # Allow specific tags like 'cmd', 'api_output'
         elif level in ["cmd", "api_output", "warn", "error", "info"]:
-             tag = level
-        else:
+             tag = level # Keep specific level tags
+        else: # Fallback for unknown levels
              tag = "info"
 
-        log_prefix = f"[{source}] " if source and source != "ComfyUI" and source not in ["ErrorAnalysis", "Analysis"] else ""
-        if source in ["ErrorAnalysis", "Analysis"] and level != "api_output":
-             log_prefix = f"[{source}] "
+        # Construct the log line prefix for context (handled in insert_output for timestamp for Launcher logs)
+        # For queueing, just include the source prefix if not ComfyUI
+        log_prefix = f"[{source}] " if source and source != "ComfyUI" else ""
 
-
+        # Put the formatted message and tag into the queue
         try:
              target_queue.put((log_prefix + message, tag))
         except Exception as e:
              print(f"[Launcher CRITICAL] Failed to put log message in queue: {e}")
 
+
     def process_output_queues(self):
         """Processes messages from BOTH log queues and updates text widgets."""
         processed_count = 0
-        max_lines_per_update = 50
+        max_lines_per_update = 50 # Process up to 50 lines per interval
 
+        # Process Launcher Log Queue
         try:
             while not self.launcher_log_queue.empty() and processed_count < max_lines_per_update:
                 line, tag = self.launcher_log_queue.get_nowait()
-                # Check if Analysis module and its text widget exist before routing
-                if self.modules.get('analysis') and hasattr(self.modules['analysis'], 'error_analysis_text') and self.modules['analysis'].error_analysis_text and self.modules['analysis'].error_analysis_text.winfo_exists() and line.strip().startswith("[ErrorAnalysis]"):
-                     self.insert_output(self.modules['analysis'].error_analysis_text, line, tag)
+                # Route Analysis API/CMD output to error_analysis_text
+                # Check for specific prefixes added in log_to_gui
+                is_analysis_log = line.strip().startswith("[ErrorAnalysis]") or line.strip().startswith("[Analysis]")
+
+                # Safely access the analysis text widget via the module instance
+                analysis_text_widget = None
+                if self.modules.get('analysis') and hasattr(self.modules['analysis'], 'error_analysis_text'):
+                     analysis_text_widget = self.modules['analysis'].error_analysis_text
+
+                if is_analysis_log and analysis_text_widget and analysis_text_widget.winfo_exists():
+                     self.insert_output(analysis_text_widget, line, tag)
                 elif self.launcher_log_text and self.launcher_log_text.winfo_exists():
                      self.insert_output(self.launcher_log_text, line, tag)
                 processed_count += 1
@@ -754,13 +787,17 @@ class ComLauncherApp:
              print(f"[Launcher ERROR] Error processing launcher log queue: {e}")
              traceback.print_exc()
 
+
+        # Process ComfyUI Log Queue
         try:
             while not self.comfyui_output_queue.empty() and processed_count < max_lines_per_update:
                 line, tag = self.comfyui_output_queue.get_nowait()
+                # Handle special marker
                 if line.strip() == _COMFYUI_READY_MARKER_.strip():
                     print("[Launcher INFO] Received ComfyUI ready marker.")
                     self._trigger_comfyui_browser_opening()
-                elif self.main_output_text and self.main_output_text.winfo_exists():
+                elif self.main_output_text and self.main_output_text.winfo_exists(): # Safely access widget
+                    # Route ComfyUI logs to main_output_text
                     self.insert_output(self.main_output_text, line, tag)
                 processed_count += 1
         except queue.Empty:
@@ -769,40 +806,50 @@ class ComLauncherApp:
              print(f"[Launcher ERROR] Error processing comfyui log queue: {e}")
              traceback.print_exc()
 
+        # Schedule the next check
         self.root.after(self.UPDATE_INTERVAL_MS, self.process_output_queues)
-
 
     def stream_output(self, process_stream, stream_name_prefix):
         """
         Reads lines from a process stream and puts them into the appropriate queue.
+        stream_name_prefix: e.g., "[ComfyUI]", "[ComfyUI ERR]", "[Git stdout]", "[Fix stderr]"
         """
         is_comfyui_stream = stream_name_prefix.startswith("[ComfyUI")
         is_stderr = "ERR" in stream_name_prefix or "stderr" in stream_name_prefix
 
+        # Determine target queue based on prefix
         target_queue = self.comfyui_output_queue if is_comfyui_stream else self.launcher_log_queue
 
+        # Determine log level/tag
         log_level = "stderr" if is_stderr else ("stdout" if is_comfyui_stream else "info")
 
         api_port = self.config.get("comfyui_api_port", DEFAULT_COMFYUI_API_PORT)
+        # More robust ready string detection
         ready_strings = [
             f"To see the GUI go to: http://127.0.0.1:{api_port}",
             f"Uvicorn running on http://127.0.0.1:{api_port}"
         ]
+        # Custom marker for simpler detection if needed
         custom_ready_marker = "### ComfyUI Ready ###"
 
         try:
             for line in iter(process_stream.readline, ''):
-                if self.stop_event_set():
+                if self.stop_event_set(): # Use the getter method
                     print(f"[Launcher INFO] {stream_name_prefix} stream reader received stop event.")
                     break
 
                 if line:
+                    # Put the raw line into the queue with prefix and level
+                    # Prefix is added here for streams, log_to_gui adds prefix for its own messages
                     target_queue.put((stream_name_prefix + " " + line, log_level))
 
+                    # Check for ComfyUI ready marker ONLY if it's a ComfyUI stream
+                    # and we haven't sent the internal marker yet.
                     if is_comfyui_stream and not self.comfyui_ready_marker_sent:
                         if any(rs in line for rs in ready_strings) or custom_ready_marker in line:
                              print(f"[Launcher INFO] {stream_name_prefix} stream detected ready string. Queuing marker.")
-                             target_queue.put((_COMFYUI_READY_MARKER_, "info"))
+                             # Queue the special internal marker
+                             target_queue.put((_COMFYUI_READY_MARKER_, "info")) # Use info tag for marker
                              self.comfyui_ready_marker_sent = True
 
             print(f"[Launcher INFO] {stream_name_prefix} stream reader thread finished.")
@@ -819,12 +866,18 @@ class ComLauncherApp:
 
     def clear_output_widgets(self):
         """Clears the text in the output ScrolledText widgets."""
+        # Only clear ComfyUI and Analysis logs, preserve Launcher logs (MOD6)
         widgets_to_clear = []
-        if self.main_output_text: widgets_to_clear.append(self.main_output_text)
-        if self.modules.get('analysis') and hasattr(self.modules['analysis'], 'error_analysis_text') and self.modules['analysis'].error_analysis_text:
-             widgets_to_clear.append(self.modules['analysis'].error_analysis_text)
-        if self.modules.get('analysis') and hasattr(self.modules['analysis'], 'user_request_text') and self.modules['analysis'].user_request_text:
-             widgets_to_clear.append(self.modules['analysis'].user_request_text)
+        if self.main_output_text:
+            widgets_to_clear.append(self.main_output_text) # ComfyUI Log
+
+        # Safely access analysis text widgets via the module instance
+        analysis_module = self.modules.get('analysis')
+        if analysis_module:
+            if hasattr(analysis_module, 'error_analysis_text') and analysis_module.error_analysis_text:
+                 widgets_to_clear.append(analysis_module.error_analysis_text) # Analysis Log
+            if hasattr(analysis_module, 'user_request_text') and analysis_module.user_request_text:
+                 widgets_to_clear.append(analysis_module.user_request_text) # User Request
 
         self.log_to_gui("Launcher", "清空 ComfyUI 日志、用户诉求和分析区域...", "info")
 
@@ -833,8 +886,9 @@ class ComLauncherApp:
                 if widget and widget.winfo_exists():
                     widget.config(state=tk.NORMAL)
                     widget.delete('1.0', tk.END)
-                    # Check if analysis module and user_request_text exist before accessing
-                    is_user_request = self.modules.get('analysis') and hasattr(self.modules['analysis'], 'user_request_text') and widget == self.modules['analysis'].user_request_text
+                    # Set state back - Analysis/ComfyUI logs disabled, User request normal
+                    # Safely check if widget is the user request text widget
+                    is_user_request = analysis_module and hasattr(analysis_module, 'user_request_text') and widget == analysis_module.user_request_text
                     widget.config(state=tk.DISABLED if not is_user_request else tk.NORMAL)
             except tk.TclError:
                 pass
@@ -893,21 +947,24 @@ class ComLauncherApp:
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中，请稍候。", "warn")
              return
-        if self.modules.get('management') and self.modules['management'].is_modal_open():
+        # Check if management modal is open via the module instance
+        if self.modules.get('management') and hasattr(self.modules['management'], 'is_modal_open') and self.modules['management'].is_modal_open():
              self.log_to_gui("Launcher", "节点版本历史弹窗已打开，请先关闭。", "warn")
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
 
+
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=False):
-            return
+            return # Validation failed, error shown by validate function
 
         self.stop_event.clear()
         self.comfyui_externally_detected = False
         self.backend_browser_triggered_for_session = False
         self.comfyui_ready_marker_sent = False
 
-        self.root.after(0, self._update_ui_state)
+        self.root.after(0, self._update_ui_state) # Update UI before starting thread
 
+        # Start progress bar and update status label only when initiating ComfyUI launch
         try:
              if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
                  self.progress_bar.start(10)
@@ -916,11 +973,12 @@ class ComLauncherApp:
         except tk.TclError:
              pass
 
+        self.clear_output_widgets() # Clear previous logs (MOD6: Launcher log preserved)
 
-        self.clear_output_widgets()
-
+        # Switch to the "Logs" tab, then the "ComfyUI日志" sub-tab
         try:
              logs_tab_index = -1
+             # Find the index of the Logs tab dynamically
              for i in range(self.notebook.index("end")):
                   if self.notebook.tab(i, "text").strip().startswith("日志"):
                        logs_tab_index = i
@@ -928,7 +986,9 @@ class ComLauncherApp:
 
              if logs_tab_index != -1:
                   self.notebook.select(logs_tab_index)
+                  # ComfyUI log sub-tab index is 1 (0 = Launcher, 1 = ComfyUI)
                   comfyui_log_sub_tab_index = 1
+                  # Safely access the logs notebook via the module instance
                   if hasattr(self, 'logs_notebook') and self.logs_notebook and self.logs_notebook.winfo_exists():
                       self.logs_notebook.select(comfyui_log_sub_tab_index)
              else:
@@ -942,13 +1002,14 @@ class ComLauncherApp:
 
     def _start_comfyui_service(self):
         """Internal method to start the ComfyUI service subprocess."""
-        if self._is_comfyui_running():
+        if self._is_comfyui_running(): # Double check within thread
             return
 
         port_to_check = int(self.config.get("comfyui_api_port", DEFAULT_COMFYUI_API_PORT))
         check_url = f"http://127.0.0.1:{port_to_check}/queue"
         is_already_running = False
 
+        # Check if port is already in use before launching
         try:
             print(f"[Launcher INFO] Checking if ComfyUI is running on {check_url} before launch...")
             response = requests.get(check_url, timeout=1.0)
@@ -959,8 +1020,9 @@ class ComLauncherApp:
                 self.comfyui_externally_detected = True
                 self.root.after(0, self._update_ui_state)
                 self.comfyui_process = None
-                self.root.after(0, self._trigger_comfyui_browser_opening)
-                return
+                # Trigger browser opening for the detected instance
+                self.root.after(0, self._trigger_comfyui_browser_opening) # Use root.after for thread safety
+                return # Stop execution here
             else:
                  print(f"[Launcher WARNING] Port check received unexpected status {response.status_code} from {check_url}. Proceeding with launch.")
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
@@ -968,12 +1030,14 @@ class ComLauncherApp:
         except Exception as e:
             print(f"[Launcher ERROR] Port check failed unexpectedly for {check_url}: {e}. Proceeding with launch.")
 
+        # Ensure flags are reset if we proceed with launch
         self.backend_browser_triggered_for_session = False
         self.comfyui_ready_marker_sent = False
         self.comfyui_externally_detected = False
 
         try:
             self.log_to_gui("ComfyUI", f"启动 ComfyUI 后台于 {self.comfyui_install_dir}...", "info")
+            # Ensure args are current
             self.update_derived_paths()
             base_cmd = [self.comfyui_portable_python, "-s", "-u", self.comfyui_main_script]
             comfyui_cmd_list = base_cmd + self.comfyui_base_args
@@ -984,7 +1048,7 @@ class ComLauncherApp:
             self.log_to_gui("ComfyUI", f"完整命令 / Full Command: {cmd_log_str}", "cmd")
 
             comfy_env = os.environ.copy()
-            comfy_env['PYTHONIOENCODING'] = 'utf-8'
+            comfy_env['PYTHONIOENCODING'] = 'utf-8' # Force UTF-8
             git_dir_in_path = os.path.dirname(self.git_exe_path) if self.git_exe_path and os.path.isdir(os.path.dirname(self.git_exe_path)) else ""
             if git_dir_in_path:
                  comfy_env['PATH'] = git_dir_in_path + os.pathsep + comfy_env.get('PATH', '')
@@ -998,39 +1062,42 @@ class ComLauncherApp:
                 comfyui_cmd_list,
                 cwd=self.comfyui_install_dir,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                bufsize=0,
+                bufsize=0, # Unbuffered
                 creationflags=creationflags, startupinfo=startupinfo,
                 env=comfy_env, text=True, encoding='utf-8', errors='replace'
             )
             self.log_to_gui("ComfyUI", f"Backend PID: {self.comfyui_process.pid}", "info")
 
+            # Start threads to read stdout and stderr
             self.comfyui_reader_thread_stdout = threading.Thread(target=self.stream_output, args=(self.comfyui_process.stdout, "[ComfyUI]"), daemon=True)
             self.comfyui_reader_thread_stderr = threading.Thread(target=self.stream_output, args=(self.comfyui_process.stderr, "[ComfyUI ERR]"), daemon=True)
             self.comfyui_reader_thread_stdout.start()
             self.comfyui_reader_thread_stderr.start()
 
+            # Check if process terminated quickly after start
             time.sleep(2)
             if not self._is_comfyui_running():
                 exit_code = self.comfyui_process.poll() if self.comfyui_process else 'N/A'
                 error_reason = f"ComfyUI 后台进程意外终止，退出码 {exit_code}。"
                 try:
-                    stdout_output, stderr_output = self.comfyui_process.communicate(timeout=0.5)
+                    stdout_output, stderr_output = self.comfyui_process.communicate(timeout=0.5) # Short timeout
                     if stdout_output:
                         error_reason += f"\n\nStdout:\n{stdout_output.strip()}"
                     if stderr_output:
                         error_reason += f"\n\nStderr:\n{stderr_output.strip()}"
                 except subprocess.TimeoutExpired:
-                    pass
+                    pass # Output likely being handled by threads
                 except Exception as read_err:
                     print(f"[Launcher WARNING] Error reading immediate output: {read_err}")
+                # Attempt to check port *after* process exit, it might indicate port conflict was the cause
                 try:
                     with socket.create_connection(("127.0.0.1", port_to_check), timeout=0.5):
-                         pass
+                        pass
                     error_reason += f"\n\n可能原因：端口 {port_to_check} 似乎已被占用。"
                 except (ConnectionRefusedError, socket.timeout):
-                    pass
+                    pass # Port likely free
                 except Exception:
-                    pass
+                    pass # Other port check error
                 raise Exception(error_reason)
 
             self.log_to_gui("ComfyUI", "ComfyUI 后台服务已启动。", "info")
@@ -1045,7 +1112,7 @@ class ComLauncherApp:
              self.root.after(0, self.reset_ui_on_error)
         except Exception as e:
             error_msg = f"启动 ComfyUI 后台失败: {e}"
-            print(f"[Launcher CRITICAL] {error_msg}", exc_info=True)
+            print(f"[Launcher CRITICAL] {error_msg}", exc_info=True) # Print traceback for debug
             self.log_to_gui("ComfyUI", error_msg, "error")
             self.root.after(0, lambda msg=str(e): messagebox.showerror("ComfyUI 启动错误", f"启动 ComfyUI 后台时发生错误:\n{msg}", parent=self.root))
             self.comfyui_process = None
@@ -1054,7 +1121,7 @@ class ComLauncherApp:
 
     def _stop_comfyui_service(self):
         """Internal method to stop the managed ComfyUI service subprocess."""
-        self.comfyui_externally_detected = False
+        self.comfyui_externally_detected = False # Assume stopping means we lose track
 
         if not self._is_comfyui_running():
             self.log_to_gui("Launcher", "ComfyUI 后台未由此启动器管理或未运行。", "warn")
@@ -1062,7 +1129,7 @@ class ComLauncherApp:
             return
 
         self.log_to_gui("Launcher", "停止 ComfyUI 后台...", "info")
-        self.root.after(0, self._update_ui_state)
+        self.root.after(0, self._update_ui_state) # Update UI before stopping
 
         try:
              if hasattr(self, 'status_label') and self.status_label.winfo_exists():
@@ -1073,18 +1140,18 @@ class ComLauncherApp:
              pass
 
         try:
-            self.stop_event.set()
+            self.stop_event.set() # Signal stream readers
             time.sleep(0.1)
             self.log_to_gui("ComfyUI", f"终止进程 PID: {self.comfyui_process.pid}...", "info")
             self.comfyui_process.terminate()
             try:
-                self.comfyui_process.wait(timeout=10)
+                self.comfyui_process.wait(timeout=10) # Wait up to 10 seconds
                 self.log_to_gui("ComfyUI", "ComfyUI 后台已终止。", "info")
             except subprocess.TimeoutExpired:
                 print("[Launcher WARNING] ComfyUI process did not terminate gracefully, killing.")
                 self.log_to_gui("ComfyUI", "强制终止 ComfyUI 后台...", "warn")
                 self.comfyui_process.kill()
-                self.comfyui_process.wait(timeout=5)
+                self.comfyui_process.wait(timeout=5) # Wait briefly for kill
                 self.log_to_gui("ComfyUI", "ComfyUI 后台已强制终止。", "info")
         except Exception as e:
             error_msg = f"停止 ComfyUI 后台出错: {e}"
@@ -1095,21 +1162,24 @@ class ComLauncherApp:
             self.stop_event.clear()
             self.backend_browser_triggered_for_session = False
             self.comfyui_ready_marker_sent = False
-            self.root.after(0, self._update_ui_state)
+            self.root.after(0, self._update_ui_state) # Update UI state after stopping
 
 
     def start_all_services_thread(self):
         """Alias for starting ComfyUI, as it's the only managed service."""
         self.start_comfyui_service_thread()
 
+
     def stop_all_services(self):
         """Stops ComfyUI service and signals update worker to stop."""
-        # Check if management modal is open and try to close it via the module
+        # Check if management modal is open and try to close it via the module instance
         if self.modules.get('management') and hasattr(self.modules['management'], 'is_modal_open') and self.modules['management'].is_modal_open():
              # Call cleanup method if it exists
              if hasattr(self.modules['management'], '_cleanup_modal_state'):
                  self.modules['management']._cleanup_modal_state()
-             self.root.update_idletasks()
+             # Give modal a moment to close before proceeding with stop if needed
+             self.root.update_idletasks() # Process pending events
+
 
         process_running = self._is_comfyui_running()
         task_running = self._is_update_task_running()
@@ -1122,17 +1192,17 @@ class ComLauncherApp:
              return
 
         self.log_to_gui("Launcher", "请求停止所有服务...", "info")
-        self.root.after(0, self._update_ui_state)
+        self.root.after(0, self._update_ui_state) # Update UI before stopping
         try:
              if hasattr(self, 'status_label') and self.status_label.winfo_exists():
                  self.status_label.config(text="状态: 停止所有服务...")
              if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
-                  self.progress_bar.start(10)
+                  self.progress_bar.start(10) # Keep progress bar running during stop process
         except tk.TclError:
              pass
 
         if process_running:
-             self._stop_comfyui_service()
+             self._stop_comfyui_service() # Handles its own UI updates within
         elif comfy_externally_detected:
             self.comfyui_externally_detected = False
             self.log_to_gui("Launcher", "检测到外部 ComfyUI，未尝试停止。", "info")
@@ -1140,9 +1210,12 @@ class ComLauncherApp:
 
         if task_running:
              self.log_to_gui("Launcher", "请求停止当前更新任务...", "info")
-             self.stop_event.set()
+             self.stop_event.set() # Signal worker thread
 
-        self.root.after(100, self._update_ui_state)
+        # Give worker a moment to react, then update UI
+        # The _update_task_worker's finally block will also trigger _update_ui_state
+        # So an extra delay here is primarily for the ComfyUI stop process visual feedback
+        self.root.after(500, self._update_ui_state)
 
 
     # --- Git Execution Helper (Remains in launcher.py) ---
@@ -1158,7 +1231,7 @@ class ComLauncherApp:
         full_cmd = [git_exe] + command_list
         git_env = os.environ.copy()
         git_env['PYTHONIOENCODING'] = 'utf-8'
-        git_env['GIT_TERMINAL_PROMPT'] = '0'
+        git_env['GIT_TERMINAL_PROMPT'] = '0' # Prevent interactive prompts
 
         if not os.path.isdir(cwd):
              err_msg = f"Git 命令工作目录不存在或无效: {cwd}"
@@ -1176,7 +1249,7 @@ class ComLauncherApp:
             startupinfo = None
             creationflags = 0
             if os.name == 'nt':
-                 creationflags = subprocess.CREATE_NO_WINDOW
+                 creationflags = subprocess.CREATE_NO_WINDOW # Prevent window popping up
 
             process = subprocess.Popen(
                 full_cmd,
@@ -1204,7 +1277,7 @@ class ComLauncherApp:
                     process.kill()
                 except OSError:
                     pass
-                returncode = 124
+                returncode = 124 # Standard timeout exit code
                 stdout_full, stderr_full = "", "命令执行超时 / Command timed out"
 
             if log_output and returncode != 0:
@@ -1241,29 +1314,46 @@ class ComLauncherApp:
              return None
         return None
 
+
     # Helper functions for Sorting (Remains in launcher.py)
     def _parse_iso_date_for_sort(self, date_str):
         """Safely parses ISO date string, returns datetime object or None."""
         if not date_str:
             return None
         try:
+            # Handle potential 'Z' timezone suffix and various ISO formats
             cleaned_date_str = date_str
             if isinstance(date_str, str):
                 if date_str.endswith('Z'):
                     cleaned_date_str = date_str[:-1] + '+00:00'
-            else:
+            else: # Handle cases where date_str might not be a string initially
                 return None
 
+            # Try parsing with timezone offset first (common formats)
             try:
+                # Handles formats like 'YYYY-MM-DDTHH:MM:SS+ZZ:ZZ' or 'YYYY-MM-DD HH:MM:SS+ZZZZ'
                 return datetime.fromisoformat(cleaned_date_str.replace(' ', 'T'))
             except ValueError:
+                # Fallback for formats like 'YYYY-MM-DD HH:MM:SS +ZZZZ' or 'YYYY-MM-DD HH:MM:SS' (assume UTC if no tz)
                 try:
+                    # Attempt with timezone first (e.g., 'YYYY-MM-DD HH:MM:SS %z')
                     return datetime.strptime(cleaned_date_str, '%Y-%m-%d %H:%M:%S %z')
                 except ValueError:
                     try:
-                        return datetime.strptime(cleaned_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                        # Attempt without timezone, assume UTC (e.g., 'YYYY-MM-DD HH:MM:SS')
+                        # Added more formats just in case
+                        formats_to_try = ['%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d', '%Y-%m-%d %H:%M:%S.%f%z', '%Y-%m-%dT%H:%M:%S.%f%z']
+                        for fmt in formats_to_try:
+                             try:
+                                  dt_obj = datetime.strptime(cleaned_date_str, fmt)
+                                  # Assume UTC if timezone is not present
+                                  return dt_obj if dt_obj.tzinfo is not None else dt_obj.replace(tzinfo=timezone.utc)
+                             except ValueError:
+                                  continue # Try next format
+                        return None # Indicate parsing failure for all formats
                     except ValueError:
-                        return None
+                         # print(f"[Launcher DEBUG] Could not parse date '{date_str}' for sorting.")
+                         return None # Indicate parsing failure
         except Exception as e:
             print(f"[Launcher ERROR] Unexpected date parsing error for '{date_str}': {e}")
             return None
@@ -1272,32 +1362,39 @@ class ComLauncherApp:
         """Safely parses version string using packaging.version or falls back."""
         if not version_str:
             return None
+        # Clean common prefixes for robust parsing
         cleaned_version_str = version_str
-        if isinstance(version_str, str):
-            if '/' in cleaned_version_str:
+        if isinstance(version_str, str): # Ensure it's a string before processing
+            if '/' in cleaned_version_str: # e.g., "tag / v1.2" -> "v1.2"
                 cleaned_version_str = cleaned_version_str.split('/')[-1].strip()
             if cleaned_version_str.startswith('v'):
                 cleaned_version_str = cleaned_version_str[1:]
+            # Handle potential "Local Commit:" or similar prefixes before version parsing
             if cleaned_version_str.startswith("本地"):
                  cleaned_version_str = cleaned_version_str.split(":")[-1].strip()
-        else:
+        else: # If not a string, return as is for potential direct comparison or None
             return version_str
 
-        if parse_version:
+        if parse_version: # Use packaging.version if available
             try:
                 return parse_version(cleaned_version_str)
             except InvalidVersion:
+                # print(f"[Launcher DEBUG] InvalidVersion for '{version_str}' during sort.")
+                # Fallback to string comparison for versions unparseable by packaging
                 return cleaned_version_str
             except Exception as e:
                 print(f"[Launcher ERROR] Unexpected version parsing error for '{version_str}': {e}")
-                return cleaned_version_str
-        else:
+                return cleaned_version_str # Fallback to string comparison
+        else: # Basic fallback if packaging isn't installed (already tried numerical tuple)
+            # If numerical tuple failed, try splitting by dot for potential numerical tuple sort
             parts = cleaned_version_str.split('.')
             if all(part.isdigit() for part in parts):
                  try:
                       return tuple(map(int, parts))
-                 except ValueError:
+                 except ValueError: # Should not happen with isdigit check, but defensive
                       pass
+
+            # If numerical tuple failed, return the cleaned string for basic lexical sort
             return cleaned_version_str
 
     def _compare_versions_for_sort(self, item1, item2):
@@ -1309,67 +1406,85 @@ class ComLauncherApp:
         date2 = self._parse_iso_date_for_sort(item2.get('date_iso'))
         name1 = item1.get('name')
         name2 = item2.get('name')
-        type1 = item1.get('type', '')
+        type1 = item1.get('type', '') # e.g., 'branch', 'tag', 'commit'
         type2 = item2.get('type', '')
 
+        # Compare dates first (descending order - newest first)
+        # Items with valid dates sort before items with no valid date (None)
         if date1 is not None and date2 is not None:
             if date1 > date2:
                 return -1
             if date1 < date2:
                 return 1
-        elif date1 is not None and date2 is None:
+            # Dates are equal, proceed to version/type
+        elif date1 is not None and date2 is None: # item1 has date, item2 doesn't -> item1 is newer (sorts first)
             return -1
-        elif date1 is None and date2 is not None:
+        elif date1 is None and date2 is not None: # item2 has date, item1 doesn't -> item2 is newer (sorts first)
             return 1
+        # Both have invalid/None dates, proceed to version comparison
 
+        # Compare versions if dates are inconclusive (descending)
         version1 = self._parse_version_string_for_sort(name1)
         version2 = self._parse_version_string_for_sort(name2)
 
+        # Prefer numerical tuple comparison if available for both
         is_tuple1 = isinstance(version1, tuple)
         is_tuple2 = isinstance(version2, tuple)
 
         if is_tuple1 and is_tuple2:
             if version1 > version2:
-                return -1
+                return -1 # Descending numerical sort
             if version1 < version2:
                 return 1
-        elif version1 is not None and version2 is not None:
+            # Tuples are equal, proceed to type/name
+        elif version1 is not None and version2 is not None: # If packaging.Version or string
             try:
+                # If they are both packaging.Version objects, compare directly
                 if parse_version and isinstance(version1, parse_version("1.0").__class__) and isinstance(version2, parse_version("1.0").__class__):
                      if version1 > version2:
                           return -1
                      if version1 < version2:
                           return 1
-                elif str(version1) > str(version2):
+                # Fallback to string comparison if versions are strings or incompatible types for direct comparison
+                # Handle potential Nonetype in str() if version parsing failed but isn't None
+                elif str(version1 if version1 is not None else '') > str(version2 if version2 is not None else ''):
                      return -1
-                elif str(version1) < str(version2):
+                elif str(version1 if version1 is not None else '') < str(version2 if version2 is not None else ''):
                      return 1
-            except TypeError:
-                 if str(name1) > str(name2):
+
+            except TypeError: # Cannot compare different types (e.g., Version vs str, or different string formats)
+                 # Fallback to simple string comparison if typed comparison fails
+                 if str(name1 if name1 is not None else '') > str(name2 if name2 is not None else ''):
                       return -1
-                 elif str(name1) < str(name2):
+                 elif str(name1 if name1 is not None else '') < str(name2 if name2 is not None else ''):
                       return 1
-        elif version1 is not None and version2 is None:
+        elif version1 is not None and version2 is None: # Treat parseable version as higher priority
             return -1
         elif version1 is None and version2 is not None:
             return 1
+        # Both version parseable fail, or types incompatible, proceed to type/name fallback
 
-        type_order = {'tag': 0, 'branch': 1, 'commit': 2, 'branch (remote)': 3, 'branch (HEAD)': 4, 'commit (HEAD)': 5, '未知': 10}
+        # Fallback: Compare types (tags usually more important than branches/commits, but order not strictly defined by user - alphabetical?)
+        # Prioritize 'tag', then 'branch', then 'commit' - this makes tags appear first, then branches, then commits
+        # Added 'branch (local)', 'branch (HEAD)', 'commit (HEAD)' with lower priority than remote
+        type_order = {'tag': 0, 'branch': 1, 'branch (remote)': 2, 'branch (local)': 3, 'branch (HEAD)': 4, 'commit': 5, 'commit (HEAD)': 6, '未知': 10} # Lower value = higher priority
         type_comp = type_order.get(type1, 10) - type_order.get(type2, 10)
         if type_comp != 0:
-            return type_comp
+            return type_comp # Sort by type priority
 
+        # Final fallback: Lexicographical comparison of original names (descending)
         if name1 and name2:
             if name1 > name2:
                 return -1
             if name1 < name2:
                 return 1
         elif name1:
-            return -1
+            return -1 # name1 exists, name2 doesn't
         elif name2:
-            return 1
+            return 1  # name2 exists, name1 doesn't
 
-        return 0
+        return 0 # Treat as equal if all else fails
+
 
     # Helper function to check if a window widget exists safely (Remains in launcher.py)
     def window_to_exists(self, window):
@@ -1381,6 +1496,7 @@ class ComLauncherApp:
         except Exception:
             return False
 
+    # Getter method for stop_event state (Utility for modules)
     def stop_event_set(self):
         """Getter method for stop_event.is_set()."""
         return self.stop_event.is_set()
@@ -1390,13 +1506,14 @@ class ComLauncherApp:
     def _update_task_worker(self):
         """Worker thread that processes update tasks from the queue."""
         while True:
-            task_func, task_args, task_kwargs = None, None, None
+            task_func, task_args, task_kwargs = None, None, None # Define outside try
             try:
+                # Use timeout=0.1 or small value so the loop can check stop_event frequently
                 task_func, task_args, task_kwargs = self.update_task_queue.get(timeout=0.1)
-                if self.stop_event_set():
+                if self.stop_event_set(): # Check if stopped while waiting
                     self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__ if task_func else 'Unknown'}' 从队列中移除，因为收到停止信号。", "warn")
                     self.update_task_queue.task_done()
-                    continue
+                    continue # Skip processing this task
 
                 self._update_task_running = True
                 self.root.after(0, self._update_ui_state)
@@ -1404,38 +1521,44 @@ class ComLauncherApp:
 
                 try:
                     task_func(*task_args, **task_kwargs)
-                except threading.ThreadExit:
+                except threading.ThreadExit: # Handle explicit stop signal within task
                      self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 被取消。", "warn")
                 except Exception as e:
                     print(f"[Launcher ERROR] Update task '{task_func.__name__}' failed: {e}", exc_info=True)
                     self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 执行失败: {e}", "error")
+                    # Show error in GUI thread
                     self.root.after(0, lambda name=task_func.__name__, msg=str(e): messagebox.showerror("更新任务失败", f"任务 '{name}' 执行失败:\n{msg}", parent=self.root))
 
                 finally:
                     # print(f"[Launcher DEBUG] Task '{task_func.__name__ if task_func else 'Unknown'}' finished, entering finally block.")
                     self.update_task_queue.task_done()
                     self._update_task_running = False
-                    self.stop_event.clear()
+                    self.stop_event.clear() # Reset stop event for the next task
                     # print(f"[Launcher DEBUG] _update_task_running set to False.")
                     self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__}' 完成。", "info")
-                    self.root.after(0, self._update_ui_state)
+                    self.root.after(0, self._update_ui_state) # Schedule UI update after task completion
                     # print(f"[Launcher DEBUG] UI update scheduled after task completion.")
 
             except queue.Empty:
-                if self.stop_event_set():
+                # When queue is empty and stop_event is set, exit the worker loop
+                if self.stop_event_set(): # Use the getter method
                     print("[Launcher INFO] Update worker thread received stop signal and queue is empty, exiting.")
                     break
+                # If queue is empty but stop_event is not set, just continue waiting (loop naturally handles timeout)
                 continue
             except Exception as e:
                 print(f"[Launcher CRITICAL] Error in update task worker loop: {e}", exc_info=True)
                 self._update_task_running = False
                 self.stop_event.clear()
+                # Attempt to mark task done if it was retrieved, even if it failed
                 try:
-                    if task_func:
+                    if task_func: # Check if task_func was successfully retrieved before error
                         self.update_task_queue.task_done()
                 except ValueError:
-                    pass
-                self.root.after(0, self._update_ui_state)
+                    pass # Task might not have been put correctly or state is inconsistent
+
+                self.root.after(0, self._update_ui_state) # Try to update UI state
+                # Avoid tight loop on persistent errors
                 time.sleep(1)
 
 
@@ -1460,8 +1583,10 @@ class ComLauncherApp:
                  self.update_task_queue.put((self.modules['management'].refresh_main_body_versions, [], {}))
             else:
                  self.log_to_gui("Launcher", "Management module refresh_main_body_versions method not found.", "error")
+                 messagebox.showerror("模块错误", "节点管理模块部分功能缺失，请检查文件。", parent=self.root)
         else:
             self.log_to_gui("Launcher", "Management module not loaded, cannot queue refresh.", "error")
+            messagebox.showerror("模块错误", "节点管理模块未加载，无法进行更新管理。", parent=self.root)
         self.root.after(0, self._update_ui_state)
 
     def _queue_main_body_activation(self):
@@ -1473,27 +1598,37 @@ class ComLauncherApp:
              self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
              return
 
+        # Access management module and its methods/attributes safely
+        mgmt_module = self.modules.get('management')
+        if not mgmt_module:
+             self.log_to_gui("Launcher", "Management module not loaded, cannot queue activation.", "error")
+             messagebox.showerror("模块错误", "节点管理模块未加载，无法进行更新管理。", parent=self.root)
+             return
+
         # Access selected item data via management module
         selected_item_data = None
-        if self.modules.get('management') and hasattr(self.modules['management'], 'get_selected_main_body_item_data'):
-             selected_item_data = self.modules['management'].get_selected_main_body_item_data()
+        if hasattr(mgmt_module, 'get_selected_main_body_item_data'):
+             selected_item_data = mgmt_module.get_selected_main_body_item_data()
 
         if not selected_item_data or len(selected_item_data) < 4:
             messagebox.showwarning("未选择版本", "请从列表中选择一个要激活的本体版本。", parent=self.root)
             return
 
-        selected_version_display, selected_commit_id_short, _, _ = selected_item_data
+        selected_version_display = selected_item_data[0]
+        selected_commit_id_short = selected_item_data[1] # Short ID from treeview
 
         full_commit_id = None
         # Access cached data via management module
-        if self.modules.get('management') and hasattr(self.modules['management'], 'remote_main_body_versions'):
-             for ver_data in self.modules['management'].remote_main_body_versions:
+        if hasattr(mgmt_module, 'remote_main_body_versions'):
+             for ver_data in mgmt_module.remote_main_body_versions:
                  commit_id_str = ver_data.get('commit_id')
+                 # Match using the displayed short ID for robustness
                  if isinstance(commit_id_str, str) and commit_id_str.startswith(selected_commit_id_short):
                       full_commit_id = ver_data["commit_id"]
                       break
 
         if not full_commit_id:
+             # Fallback: Use the short ID directly. Git checkout usually works with short IDs.
              full_commit_id = selected_commit_id_short
              self.log_to_gui("Launcher", f"无法在缓存中找到 '{selected_commit_id_short}' 的完整ID，将尝试使用短ID激活。", "warn")
 
@@ -1516,13 +1651,12 @@ class ComLauncherApp:
 
         self.log_to_gui("Launcher", f"将激活本体版本 '{full_commit_id[:8]}' 任务添加到队列...", "info")
         # Queue the task method of the management module instance
-        if self.modules.get('management'):
-             if hasattr(self.modules['management'], '_activate_main_body_version_task'):
-                 self.update_task_queue.put((self.modules['management']._activate_main_body_version_task, [comfyui_dir, full_commit_id], {}))
-             else:
-                 self.log_to_gui("Launcher", "Management module _activate_main_body_version_task method not found.", "error")
+        if hasattr(mgmt_module, '_activate_main_body_version_task'):
+            self.update_task_queue.put((mgmt_module._activate_main_body_version_task, [comfyui_dir, full_commit_id], {}))
         else:
-            self.log_to_gui("Launcher", "Management module not loaded, cannot queue activation.", "error")
+            self.log_to_gui("Launcher", "Management module _activate_main_body_version_task method not found.", "error")
+            messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法执行激活。", parent=self.root)
+
         self.root.after(0, self._update_ui_state)
 
     def _queue_node_list_refresh(self):
@@ -1533,6 +1667,8 @@ class ComLauncherApp:
         if self._is_update_task_running():
              self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
              return
+        # Note: Path validation moved inside the refresh_node_list task itself for flexibility
+
         self.log_to_gui("Launcher", "将刷新节点列表任务添加到队列...", "info")
         # Queue the task method of the management module instance
         if self.modules.get('management'):
@@ -1540,13 +1676,22 @@ class ComLauncherApp:
                  self.update_task_queue.put((self.modules['management'].refresh_node_list, [], {}))
              else:
                  self.log_to_gui("Launcher", "Management module refresh_node_list method not found.", "error")
+                 messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法执行刷新。", parent=self.root)
         else:
             self.log_to_gui("Launcher", "Management module not loaded, cannot queue node list refresh.", "error")
+            messagebox.showerror("模块错误", "节点管理模块未加载，无法进行更新管理。", parent=self.root)
         self.root.after(0, self._update_ui_state)
 
     def _queue_node_switch_or_show_history(self):
-        """Handles click on '切换版本' button: shows history modal for installed git nodes, queues install for others (calls management module)."""
-        if self.modules.get('management') and hasattr(self.modules['management'], 'is_modal_open') and self.modules['management'].is_modal_open():
+        """Handles click on '切换版本' button or node double-click: shows history modal for installed git nodes, queues install for others (calls management module)."""
+        # Access management module and its methods/attributes safely
+        mgmt_module = self.modules.get('management')
+        if not mgmt_module:
+             self.log_to_gui("Launcher", "Management module not loaded, cannot queue node operation.", "error")
+             messagebox.showerror("模块错误", "节点管理模块未加载，无法进行更新管理。", parent=self.root)
+             return
+
+        if hasattr(mgmt_module, 'is_modal_open') and mgmt_module.is_modal_open():
              messagebox.showwarning("操作进行中", "节点版本历史弹窗已打开。", parent=self.root)
              return
 
@@ -1556,14 +1701,17 @@ class ComLauncherApp:
 
         # Access selected item data via management module
         selected_item_data = None
-        if self.modules.get('management') and hasattr(self.modules['management'], 'get_selected_node_item_data'):
-             selected_item_data = self.modules['management'].get_selected_node_item_data()
+        if hasattr(mgmt_module, 'get_selected_node_item_data'):
+             selected_item_data = mgmt_module.get_selected_node_item_data()
 
         if not selected_item_data or len(selected_item_data) < 5:
             messagebox.showwarning("未选择节点", "请从列表中选择一个要操作的节点。", parent=self.root)
             return
 
-        node_name, node_status, _, repo_info, repo_url = selected_item_data
+        node_name = selected_item_data[0]
+        node_status = selected_item_data[1]
+        repo_info = selected_item_data[3] # Remote info string
+        repo_url = selected_item_data[4] # Repo URL
 
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=True, show_error=True):
              return
@@ -1572,68 +1720,76 @@ class ComLauncherApp:
              return
 
         node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name))
+        # Check if installed AND is a git repository
         is_installed_and_git = os.path.isdir(node_install_path) and os.path.isdir(os.path.join(node_install_path, ".git"))
 
-        if self.modules.get('management'):
-             if is_installed_and_git:
-                  if self._is_comfyui_running() or self.comfyui_externally_detected:
-                       messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点版本切换。", parent=self.root)
-                       return
 
-                  self.log_to_gui("Launcher", f"将获取节点 '{node_name}' 版本历史任务添加到队列...", "info")
-                  if hasattr(self.modules['management'], '_node_history_fetch_task'):
-                      self.update_task_queue.put((self.modules['management']._node_history_fetch_task, [node_name, node_install_path], {}))
-                  else:
-                      self.log_to_gui("Launcher", "Management module _node_history_fetch_task method not found.", "error")
+        if is_installed_and_git:
+             # MOD2: Check if ComfyUI is running before allowing git operations on node
+             if self._is_comfyui_running() or self.comfyui_externally_detected:
+                  messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点版本切换。", parent=self.root)
+                  return
 
+             # --- MOD1: Defer history fetch ---
+             self.log_to_gui("Launcher", f"将获取节点 '{node_name}' 版本历史任务添加到队列...", "info")
+             # Pass node name and path to the fetch task method of the management module
+             if hasattr(mgmt_module, '_node_history_fetch_task'):
+                 self.update_task_queue.put((mgmt_module._node_history_fetch_task, [node_name, node_install_path], {}))
              else:
-                  if not repo_url or repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库"):
-                      messagebox.showerror("节点信息缺失", f"节点 '{node_name}' 无有效的仓库地址，无法进行版本切换或安装。", parent=self.root)
-                      return
+                 self.log_to_gui("Launcher", "Management module _node_history_fetch_task method not found.", "error")
+                 messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法获取历史版本。", parent=self.root)
 
-                  if self._is_comfyui_running() or self.comfyui_externally_detected:
-                       messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点安装。", parent=self.root)
-                       return
-
-                  target_ref_for_install = "main"
-                  # Access cached data via management module
-                  found_online_node = None
-                  if hasattr(self.modules['management'], 'all_known_nodes'):
-                       found_online_node = next((n for n in self.modules['management'].all_known_nodes if n.get("name","").lower() == node_name.lower()), None)
-
-                  if found_online_node:
-                       potential_ref = found_online_node.get("reference") or found_online_node.get("branch")
-                       if potential_ref:
-                            target_ref_for_install = potential_ref
-                            self.log_to_gui("Management", f"从在线配置获取到目标引用: {target_ref_for_install}", "info")
-                  elif repo_info and not repo_info.startswith("信息获取失败"):
-                      if "在线目标:" in repo_info:
-                           potential_ref = repo_info.split("在线目标:", 1)[-1].strip()
-                           if potential_ref:
-                               target_ref_for_install = potential_ref
-                      elif '(' in repo_info and ')' in repo_info:
-                          parts = repo_info.split('(')
-                          potential_ref = parts[0].strip()
-                          if potential_ref:
-                              target_ref_for_install = potential_ref
-
-
-                  confirm_msg = f"确定要安装节点 '{node_name}' 吗？\n" \
-                                f"仓库地址: {repo_url}\n" \
-                                f"目标引用/分支: {target_ref_for_install}\n" \
-                                f"目标目录: {node_install_path}\n\n" \
-                                f"确认前请确保 ComfyUI 已停止运行。"
-                  confirm = messagebox.askyesno("确认安装", confirm_msg, parent=self.root)
-                  if not confirm:
-                      return
-
-                  self.log_to_gui("Launcher", f"将安装节点 '{node_name}' (目标引用: {target_ref_for_install})任务添加到队列...", "info")
-                  if hasattr(self.modules['management'], '_install_node_task'):
-                      self.update_task_queue.put((self.modules['management']._install_node_task, [node_name, node_install_path, repo_url, target_ref_for_install], {}))
-                  else:
-                      self.log_to_gui("Launcher", "Management module _install_node_task method not found.", "error")
         else:
-            self.log_to_gui("Launcher", "Management module not loaded, cannot queue node operation.", "error")
+             if not repo_url or repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库"):
+                 messagebox.showerror("节点信息缺失", f"节点 '{node_name}' 无有效的仓库地址，无法进行版本切换或安装。", parent=self.root)
+                 return
+             # MOD2: Check if ComfyUI is running before allowing git operations on node
+             if self._is_comfyui_running() or self.comfyui_externally_detected:
+                  messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点安装。", parent=self.root)
+                  return
+
+             target_ref_for_install = "main" # Default branch (can be overridden)
+             # Try to infer target reference (branch/tag) from online config info if available
+             # Access cached data via management module
+             found_online_node = None
+             if hasattr(mgmt_module, 'all_known_nodes'):
+                  found_online_node = next((n for n in mgmt_module.all_known_nodes if n.get("name","").lower() == node_name.lower()), None)
+
+             if found_online_node:
+                  potential_ref = found_online_node.get("reference") or found_online_node.get("branch")
+                  if potential_ref:
+                       target_ref_for_install = potential_ref
+                       self.log_to_gui("Management", f"从在线配置获取到目标引用: {target_ref_for_install}", "info")
+             elif repo_info and not repo_info.startswith("信息获取失败"):
+                 # Fallback to parsing the repo_info string if online config wasn't used or failed
+                 if "在线目标:" in repo_info:
+                      potential_ref = repo_info.split("在线目标:", 1)[-1].strip()
+                      if potential_ref:
+                          target_ref_for_install = potential_ref
+                 # Attempt to parse branch name from repo_info like "branch (commit)"
+                 elif '(' in repo_info and ')' in repo_info:
+                     parts = repo_info.split('(')
+                     potential_ref = parts[0].strip()
+                     if potential_ref:
+                         target_ref_for_install = potential_ref
+
+
+             confirm_msg = f"确定要安装节点 '{node_name}' 吗？\n" \
+                           f"仓库地址: {repo_url}\n" \
+                           f"目标引用/分支: {target_ref_for_install}\n" \
+                           f"目标目录: {node_install_path}\n\n" \
+                           f"确认前请确保 ComfyUI 已停止运行。" # Reiterated warning
+             confirm = messagebox.askyesno("确认安装", confirm_msg, parent=self.root)
+             if not confirm:
+                 return
+
+             self.log_to_gui("Launcher", f"将安装节点 '{node_name}' (目标引用: {target_ref_for_install})任务添加到队列...", "info")
+             # Queue the install task method of the management module
+             if hasattr(mgmt_module, '_install_node_task'):
+                 self.update_task_queue.put((mgmt_module._install_node_task, [node_name, node_install_path, repo_url, target_ref_for_install], {}))
+             else:
+                 self.log_to_gui("Launcher", "Management module _install_node_task method not found.", "error")
+                 messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法执行安装。", parent=self.root)
 
 
         self.root.after(0, self._update_ui_state)
@@ -1657,16 +1813,19 @@ class ComLauncherApp:
              messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行全部节点更新。", parent=self.root)
              return
 
+        # Access management module and its local_nodes_only attribute safely
+        mgmt_module = self.modules.get('management')
         nodes_to_update = []
-        if self.modules.get('management') and hasattr(self.modules['management'], 'local_nodes_only'):
+        if mgmt_module and hasattr(mgmt_module, 'local_nodes_only'):
              nodes_to_update = [
-                 node for node in self.modules['management'].local_nodes_only
+                 node for node in mgmt_module.local_nodes_only
                  if node.get("is_git") and node.get("repo_url") and node.get("repo_url") not in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库") and node.get("remote_branch") and node.get("remote_branch") != "N/A"
              ]
         else:
              self.log_to_gui("Launcher", "Management module not loaded or local_nodes_only attribute missing, cannot get node list for update.", "error")
              messagebox.showerror("模块错误", "无法加载节点管理模块，无法更新全部节点。", parent=self.root)
              return
+
 
         if not nodes_to_update:
              messagebox.showinfo("无节点可更新", "没有找到可更新的已安装 Git 节点（具有有效的远程跟踪分支）。", parent=self.root)
@@ -1677,13 +1836,12 @@ class ComLauncherApp:
             return
 
         self.log_to_gui("Launcher", f"将更新全部节点任务添加到队列 (共 {len(nodes_to_update)} 个)...", "info")
-        if self.modules.get('management'):
-             if hasattr(self.modules['management'], '_update_all_nodes_task'):
-                 self.update_task_queue.put((self.modules['management']._update_all_nodes_task, [nodes_to_update], {}))
-             else:
-                 self.log_to_gui("Launcher", "Management module _update_all_nodes_task method not found.", "error")
+        # Queue the update task method of the management module
+        if hasattr(mgmt_module, '_update_all_nodes_task'):
+            self.update_task_queue.put((mgmt_module._update_all_nodes_task, [nodes_to_update], {}))
         else:
-             self.log_to_gui("Launcher", "Management module not loaded, cannot queue update all.", "error")
+             self.log_to_gui("Launcher", "Management module _update_all_nodes_task method not found.", "error")
+             messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法执行更新全部。", parent=self.root)
 
         self.root.after(0, self._update_ui_state)
 
@@ -1696,15 +1854,23 @@ class ComLauncherApp:
              self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
              return
 
+        # Access management module and its selected item data method safely
+        mgmt_module = self.modules.get('management')
+        if not mgmt_module:
+             self.log_to_gui("Launcher", "Management module not loaded, cannot queue uninstall.", "error")
+             messagebox.showerror("模块错误", "节点管理模块未加载，无法进行更新管理。", parent=self.root)
+             return
+
         selected_item_data = None
-        if self.modules.get('management') and hasattr(self.modules['management'], 'get_selected_node_item_data'):
-             selected_item_data = self.modules['management'].get_selected_node_item_data()
+        if hasattr(mgmt_module, 'get_selected_node_item_data'):
+             selected_item_data = mgmt_module.get_selected_node_item_data()
 
         if not selected_item_data or len(selected_item_data) < 5:
             messagebox.showwarning("未选择节点", "请从列表中选择一个要卸载的节点。", parent=self.root)
             return
 
-        node_name, node_status, _, _, _ = selected_item_data
+        node_name = selected_item_data[0]
+        node_status = selected_item_data[1]
 
         if node_status != "已安装":
              messagebox.showwarning("节点未安装", f"节点 '{node_name}' 未安装。", parent=self.root)
@@ -1716,12 +1882,13 @@ class ComLauncherApp:
         node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name))
         if not os.path.isdir(node_install_path):
              messagebox.showerror("目录错误", f"指定的节点目录不存在或无效:\n{node_install_path}", parent=self.root)
-             self.root.after(0, self._queue_node_list_refresh)
+             self.root.after(0, self._queue_node_list_refresh) # Refresh list if directory is missing
              return
 
         if self._is_comfyui_running() or self.comfyui_externally_detected:
              messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点卸载。", parent=self.root)
              return
+
 
         confirm = messagebox.askyesno(
              "确认卸载节点",
@@ -1730,14 +1897,14 @@ class ComLauncherApp:
         if not confirm:
             return
 
-        self.log_to_gui("Launcher", f"将卸载节点 '{node_name}' task添加到队列...", "info")
-        if self.modules.get('management'):
-             if hasattr(self.modules['management'], '_node_uninstall_task'):
-                 self.update_task_queue.put((self.modules['management']._node_uninstall_task, [node_name, node_install_path], {}))
-             else:
-                 self.log_to_gui("Launcher", "Management module _node_uninstall_task method not found.", "error")
+        self.log_to_gui("Launcher", f"将卸载节点 '{node_name}' task添加到队列...", "info") # Corrected to 'task'
+        # Queue the uninstall task method of the management module
+        if hasattr(mgmt_module, '_node_uninstall_task'):
+            self.update_task_queue.put((mgmt_module._node_uninstall_task, [node_name, node_install_path], {}))
         else:
-             self.log_to_gui("Launcher", "Management module not loaded, cannot queue uninstall.", "error")
+             self.log_to_gui("Launcher", "Management module _node_uninstall_task method not found.", "error")
+             messagebox.showerror("模块错误", "节点管理模块部分功能缺失，无法执行卸载。", parent=self.root)
+
         self.root.after(0, self._update_ui_state)
 
 
@@ -1753,18 +1920,23 @@ class ComLauncherApp:
               return
 
          self.log_to_gui("Launcher", "开始加载更新管理数据...", "info")
-         if self.modules.get('management'):
+         # Access management module safely before queuing its wrapper task
+         mgmt_module = self.modules.get('management')
+         if mgmt_module:
               # Queue a wrapper task that calls module methods
-              self.update_task_queue.put((self._run_initial_background_tasks, [], {}))
+              # Pass the module instance itself to the wrapper task
+              self.update_task_queue.put((self._run_initial_background_tasks, [mgmt_module], {}))
          else:
               self.log_to_gui("Launcher", "Management module not loaded, cannot perform initial data load.", "error")
+              messagebox.showerror("模块错误", "节点管理模块未加载，跳过初始数据加载。", parent=self.root)
 
          self.root.after(0, self._update_ui_state)
 
 
-    def _run_initial_background_tasks(self):
+    def _run_initial_background_tasks(self, mgmt_module_instance):
          """Executes the initial data loading tasks by calling module methods. Runs in worker thread."""
-         if self.stop_event_set():
+         # Note: mgmt_module_instance is passed as an argument here
+         if self.stop_event_set(): # Use the getter method
              self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn")
              return
 
@@ -1773,94 +1945,118 @@ class ComLauncherApp:
          if not git_path_ok:
              self.log_to_gui("Launcher", "Git 路径无效，数据加载将受限。", "warn")
 
-         if self.modules.get('management'):
-             # Call refresh methods on the management module instance
-             if hasattr(self.modules['management'], 'refresh_main_body_versions'):
-                 self.modules['management'].refresh_main_body_versions()
-             else:
-                  self.log_to_gui("Launcher", "Management module refresh_main_body_versions method not found.", "error")
-
-             if self.stop_event_set():
-                  self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn")
-                  return
-
-             if hasattr(self.modules['management'], 'refresh_node_list'):
-                  self.modules['management'].refresh_node_list()
-             else:
-                  self.log_to_gui("Launcher", "Management module refresh_node_list method not found.", "error")
+         # Call refresh methods on the passed management module instance
+         if hasattr(mgmt_module_instance, 'refresh_main_body_versions'):
+             mgmt_module_instance.refresh_main_body_versions()
          else:
-             self.log_to_gui("Launcher", "Management module not loaded, skipping data loading.", "error")
+              self.log_to_gui("Launcher", "Management module refresh_main_body_versions method not found during initial load.", "error")
+
+         if self.stop_event_set(): # Use the getter method
+              self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn")
+              return
+
+         if hasattr(mgmt_module_instance, 'refresh_node_list'):
+              mgmt_module_instance.refresh_node_list()
+         else:
+              self.log_to_gui("Launcher", "Management module refresh_node_list method not found during initial load.", "error")
 
 
-         if not self.stop_event_set():
+         if not self.stop_event_set(): # Use the getter method
              self.log_to_gui("Launcher", "后台数据加载完成。", "info")
 
 
     # --- Update Management Tasks (Moved to management.py) ---
-    # ... (methods defined in management.py)
+    # ... (methods like refresh_main_body_versions, _activate_main_body_version_task,
+    # refresh_node_list, _install_node_task, _node_uninstall_task,
+    # _update_all_nodes_task, _node_history_fetch_task, _show_node_history_modal,
+    # _cleanup_modal_state, _on_modal_switch_confirm, _switch_node_to_ref_task
+    # are now implemented in ui_modules/management.py)
+
 
     # --- Error Analysis Methods (Moved to analysis.py) ---
-    # ... (methods defined in analysis.py)
+    # ... (methods like run_diagnosis, _run_diagnosis_task, _display_analysis_result,
+    # run_fix, _run_fix_simulation_task, has_analysis_output_content,
+    # is_user_request_enabled, set_user_request_state
+    # are now implemented in ui_modules/analysis.py)
+
 
     # --- UI State and Helpers (Remains in launcher.py, interacts with modules) ---
     def _update_ui_state(self):
         """Central function to update all button states and status label."""
+        # Schedule the actual update to happen soon in the main GUI thread
         self.root.after(0, self._do_update_ui_state)
 
     def _do_update_ui_state(self):
         """The actual UI update logic, called by root.after."""
+        # Ensure root window and necessary widgets exist before trying to configure them
         if not self.root or not self.root.winfo_exists():
              return
 
         comfy_running_internally = self._is_comfyui_running()
         comfy_detected_externally = self.comfyui_externally_detected
         update_task_running = self._is_update_task_running()
-        is_starting_stopping_comfy = False
+        is_starting_stopping_comfy = False # Flag for ComfyUI specific start/stop state
         is_progress_bar_running = False
-        # Check modal state via management module
+        # Check modal state via management module instance safely
         modal_is_open = self.modules.get('management') and hasattr(self.modules['management'], 'is_modal_open') and self.modules['management'].is_modal_open()
 
 
-        try:
+        try: # Check progress bar state safely
             if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
                  is_progress_bar_running = self.progress_bar.winfo_ismapped() and self.progress_bar.cget('mode') == 'indeterminate'
                  label_text = self.status_label.cget("text") if hasattr(self, 'status_label') and self.status_label.winfo_exists() else ""
-                 if any(status_text in label_text for status_text in ["启动 ComfyUI", "停止 ComfyUI", "停止所有服务", "任务进行中"]):
+                 # Check if status label indicates any task is starting/stopping/running (includes both ComfyUI and other tasks)
+                 # The condition `update_task_running` already covers the "任务进行中..." state.
+                 # Let's refine the condition for starting/stopping ComfyUI specifically.
+                 # Check if the status explicitly says "启动 ComfyUI" or "停止 ComfyUI" or "停止所有服务" (which includes ComfyUI stop).
+                 if any(status_text in label_text for status_text in ["启动 ComfyUI", "停止 ComfyUI", "停止所有服务"]):
                       is_starting_stopping_comfy = True
+                 # If update_task_running is True, the status is already set to "任务进行中...",
+                 # so the check above is mainly for the brief transition state of ComfyUI.
+
         except tk.TclError:
-            is_progress_bar_running = False
+            is_progress_bar_running = False # Assume not running if widget gone
             is_starting_stopping_comfy = False
 
-        status_text = "状态: 服务已停止"
+
+        status_text = "状态: 服务已停止" # Default status
         main_stop_style = "Stop.TButton"
-        run_comfyui_enabled = tk.DISABLED
+        run_comfyui_enabled = tk.DISABLED # Defaults
         stop_all_enabled = tk.DISABLED
 
+        # Determine Status and Global Button States
         comfy_can_run_paths = self._validate_paths_for_execution(check_comfyui=True, check_git=False, show_error=False)
         git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
 
+        # Prioritize task state > ComfyUI running state > idle state
         if update_task_running or is_starting_stopping_comfy:
-            status_text = "状态: 任务进行中..."
-            stop_all_enabled = tk.NORMAL
+            # Status is set by the task/start/stop method itself during the process
+            # status_text = "状态: 任务进行中..." # Keep the specific status set earlier
+            stop_all_enabled = tk.NORMAL # Allow stopping update task or ComfyUI process
             main_stop_style = "StopRunning.TButton"
+            # Run button disabled while any task or ComfyUI is starting/stopping/running
             run_comfyui_enabled = tk.DISABLED
         elif comfy_detected_externally:
-            status_text = f"状态: 外部 ComfyUI 运行中 (端口 {self.comfyui_api_port_var.get()})"
+            status_text = f"状态: 外部 ComfyUI 运行中 (端口 {self.comfyui_api_port_var.get()})" # Use current port from var
             run_comfyui_enabled = tk.DISABLED
-            stop_all_enabled = tk.DISABLED
+            stop_all_enabled = tk.DISABLED # Cannot stop external process
         elif comfy_running_internally:
             status_text = "状态: ComfyUI 后台运行中"
             main_stop_style = "StopRunning.TButton"
-            run_comfyui_enabled = tk.DISABLED
+            run_comfyui_enabled = tk.DISABLED # Disabled once running
             stop_all_enabled = tk.NORMAL
-        else:
+        else: # Idle state (Neither ComfyUI running/detected/starting/stopping, nor update task running)
             status_text = "状态: 服务已停止"
+            # Run button enabled only if paths are valid and nothing is currently running/modal is closed (Bug 2)
             run_comfyui_enabled = tk.NORMAL if comfy_can_run_paths and not modal_is_open else tk.DISABLED
             stop_all_enabled = tk.DISABLED
 
 
+        # Update Progress Bar (Active if update task running OR comfyui starting/stopping is indicated by label)
         try:
             if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
+                # Progress bar should run if any background task is active (update_task_running)
+                # OR if the status label indicates ComfyUI specific start/stop phase.
                 should_run_progress = update_task_running or is_starting_stopping_comfy
 
                 if should_run_progress and not is_progress_bar_running:
@@ -1871,12 +2067,25 @@ class ComLauncherApp:
             pass
 
 
+        # Update Status Label
         try:
             if hasattr(self, 'status_label') and self.status_label.winfo_exists():
-                 self.status_label.config(text=status_text)
+                 # Only update status text if not currently indicating a task/transition state
+                 if not (update_task_running or is_starting_stopping_comfy):
+                     self.status_label.config(text=status_text)
+                 # Otherwise, the status text was set by the task/start/stop method, leave it as is.
+            # Update current main body version label regardless of state
+            mgmt_module = self.modules.get('management')
+            if mgmt_module and hasattr(mgmt_module, 'current_main_body_version_label') and mgmt_module.current_main_body_version_label and mgmt_module.current_main_body_version_label.winfo_exists():
+                 # The text variable (self.current_main_body_version_var) is updated by the refresh task,
+                 # the label just needs to be potentially repainted, which Tkinter handles.
+                 # No explicit config needed here.
+                 pass # Keep this for clarity, the label update is implicit via textvariable
+
         except tk.TclError:
             pass
 
+        # Update Global Run/Stop Buttons
         try:
             if hasattr(self, 'run_all_button') and self.run_all_button.winfo_exists():
                  self.run_all_button.config(state=run_comfyui_enabled)
@@ -1886,21 +2095,26 @@ class ComLauncherApp:
             pass
 
         # --- Update Management Tab Buttons ---
+        # Base state for *most* update buttons: Enabled if git OK AND no task/start/stop running AND modal is closed
         base_update_enabled = tk.NORMAL if git_path_ok and not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
 
-        if self.modules.get('management'):
+        # Access management module safely
+        mgmt_module = self.modules.get('management')
+        if mgmt_module:
             try:
-                mgmt_module = self.modules['management']
+                # Main Body Tab
                 if hasattr(mgmt_module, 'refresh_main_body_button') and mgmt_module.refresh_main_body_button and mgmt_module.refresh_main_body_button.winfo_exists():
                      mgmt_module.refresh_main_body_button.config(state=base_update_enabled)
 
                 if hasattr(mgmt_module, 'activate_main_body_button') and mgmt_module.activate_main_body_button and mgmt_module.activate_main_body_button.winfo_exists():
+                     # Safely check if treeview exists before querying selection
                      item_selected_main = hasattr(mgmt_module, 'main_body_tree') and mgmt_module.main_body_tree and mgmt_module.main_body_tree.winfo_exists() and bool(mgmt_module.main_body_tree.focus())
 
                      comfy_dir_is_repo = False
                      if self.comfyui_install_dir and os.path.isdir(self.comfyui_install_dir):
                           comfy_dir_is_repo = os.path.isdir(os.path.join(self.comfyui_install_dir, ".git"))
 
+                     # Activate requires base enabled, item selected, ComfyUI dir is git repo AND ComfyUI not running/detected
                      activate_enabled_state = tk.DISABLED
                      if base_update_enabled == tk.NORMAL and item_selected_main and comfy_dir_is_repo and not comfy_running_internally and not comfy_detected_externally:
                           activate_enabled_state = tk.NORMAL
@@ -1911,23 +2125,28 @@ class ComLauncherApp:
                 item_selected_nodes = hasattr(mgmt_module, 'nodes_tree') and mgmt_module.nodes_tree and mgmt_module.nodes_tree.winfo_exists() and bool(mgmt_module.nodes_tree.focus())
 
                 node_is_installed = False; node_is_git = False; node_has_url = False
-                if item_selected_nodes and hasattr(mgmt_module, 'nodes_tree') and mgmt_module.nodes_tree and mgmt_module.nodes_tree.winfo_exists() and self.comfyui_nodes_dir:
+                # Safely access nodes_tree and nodes_dir before trying to get item data
+                if item_selected_nodes and hasattr(mgmt_module, 'nodes_tree') and mgmt_module.nodes_tree and mgmt_module.nodes_tree.winfo_exists() and self.comfyui_nodes_dir and os.path.isdir(self.comfyui_nodes_dir):
                      try:
                           node_data = mgmt_module.nodes_tree.item(mgmt_module.nodes_tree.focus(), 'values')
                           if node_data and len(node_data) >= 5:
                                node_name_selected = node_data[0]; node_status = node_data[1]; repo_url = node_data[4]
                                node_is_installed = (node_status == "已安装")
                                node_has_url = bool(repo_url) and repo_url not in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库")
+                               # Try finding in cached local list first
                                found_node_info = hasattr(mgmt_module, 'local_nodes_only') and next((n for n in mgmt_module.local_nodes_only if n.get("name") == node_name_selected), None)
                                if found_node_info:
                                    node_is_git = found_node_info.get("is_git", False)
                                else:
+                                    # Fallback check by path if not in local_nodes_only (shouldn't happen if list is fresh?)
                                     node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name_selected))
                                     node_is_git = os.path.isdir(node_install_path) and os.path.isdir(os.path.join(node_install_path, ".git"))
 
                      except Exception as e:
-                         print(f"[Launcher DEBUG] Error getting node state: {e}")
+                         print(f"[Launcher DEBUG] Error getting node state: {e}") # Log error but continue
 
+
+                # Search entry and button enabled if no task/start/stop running AND modal is closed (Bug 3 Fix check)
                 search_enabled = tk.NORMAL if not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
                 if hasattr(mgmt_module, 'nodes_search_entry') and mgmt_module.nodes_search_entry and mgmt_module.nodes_search_entry.winfo_exists():
                     mgmt_module.nodes_search_entry.config(state=search_enabled)
@@ -1936,24 +2155,32 @@ class ComLauncherApp:
                 if hasattr(mgmt_module, 'refresh_nodes_button') and mgmt_module.refresh_nodes_button and mgmt_module.refresh_nodes_button.winfo_exists():
                     mgmt_module.refresh_nodes_button.config(state=base_update_enabled)
 
-                can_switch = node_is_installed and node_is_git and node_has_url
-                can_install = not node_is_installed and node_has_url
+                # Switch/Install Button Logic:
+                # Enabled if base enabled, item selected, ComfyUI not running, AND (can switch OR can install)
+                can_switch = node_is_installed and node_is_git and node_has_url # Need git repo for history/switch
+                can_install = not node_is_installed and node_has_url # Need remote URL to install
                 switch_install_final_state = tk.DISABLED
                 if base_update_enabled == tk.NORMAL and item_selected_nodes and (can_switch or can_install) and not comfy_running_internally and not comfy_detected_externally:
                     switch_install_final_state = tk.NORMAL
 
                 if hasattr(mgmt_module, 'switch_install_node_button') and mgmt_module.switch_install_node_button and mgmt_module.switch_install_node_button.winfo_exists():
-                     button_text = "切换版本"
-                     if item_selected_nodes:
-                          button_text = "切换版本" if node_is_installed and node_is_git else "安装节点" if node_has_url else "切换版本"
+                     # Text changes based on selection state
+                     button_text = "切换版本" # Default if nothing selected or unknown
+                     if item_selected_nodes: # Only change text if an item is actually selected
+                          button_text = "切换版本" if node_is_installed and node_is_git else "安装节点" if node_has_url else "切换版本" # Default if no URL
                      mgmt_module.switch_install_node_button.config(state=switch_install_final_state, text=button_text)
 
+
+                # Uninstall Button Logic:
+                # Enabled if base enabled, item selected, installed, AND ComfyUI not running
                 uninstall_final_state = tk.DISABLED
                 if base_update_enabled == tk.NORMAL and item_selected_nodes and node_is_installed and not comfy_running_internally and not comfy_detected_externally:
                      uninstall_final_state = tk.NORMAL
                 if hasattr(mgmt_module, 'uninstall_node_button') and mgmt_module.uninstall_node_button and mgmt_module.uninstall_node_button.winfo_exists():
                      mgmt_module.uninstall_node_button.config(state=uninstall_final_state)
 
+                # Update All Button Logic:
+                # Enabled if base enabled AND ComfyUI not running
                 update_all_final_state = tk.DISABLED
                 if base_update_enabled == tk.NORMAL and not comfy_running_internally and not comfy_detected_externally:
                      update_all_final_state = tk.NORMAL
@@ -1963,17 +2190,34 @@ class ComLauncherApp:
             except tk.TclError as e:
                  print(f"[Launcher WARNING] Error updating Management UI state: {e}")
             except AttributeError as e:
-                 print(f"[Launcher WARNING] Error updating Management UI state (attribute missing): {e}")
+                 print(f"[Launcher WARNING] Error updating Management UI state (attribute missing in module): {e}")
             except Exception as e:
                  print(f"[Launcher ERROR] Unexpected error updating Management UI state: {e}")
+        else:
+             # If management module is not loaded, disable all its buttons (defensive)
+             for mod_name in ['management']:
+                  if self.modules.get(mod_name):
+                       mod_instance = self.modules[mod_name]
+                       for attr_name in ['refresh_main_body_button', 'activate_main_body_button',
+                                         'nodes_search_entry', 'search_nodes_button', 'refresh_nodes_button',
+                                         'switch_install_node_button', 'uninstall_node_button', 'update_all_nodes_button']:
+                            if hasattr(mod_instance, attr_name):
+                                 widget = getattr(mod_instance, attr_name)
+                                 if widget and widget.winfo_exists():
+                                      try:
+                                           widget.config(state=tk.DISABLED)
+                                      except tk.TclError:
+                                           pass # Widget might have been destroyed
 
 
         # --- Analysis Tab Buttons ---
-        if self.modules.get('analysis'):
+        # Access analysis module safely
+        analysis_module = self.modules.get('analysis')
+        if analysis_module:
              try:
-                  analysis_module = self.modules['analysis']
                   api_endpoint_set = bool(self.error_api_endpoint_var.get().strip())
-                  api_key_set = bool(self.error_api_key_var.get().strip())
+                  api_key_set = bool(self.error_api_key_var.get().strip()) # MOD4: Check key presence
+                  # Diagnose enabled if API endpoint AND key are set, AND no task/start/stop running AND modal is closed (Bug 3 Fix check)
                   diagnose_enabled_state = tk.DISABLED
                   if api_endpoint_set and api_key_set and not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
                        diagnose_enabled_state = tk.NORMAL
@@ -1981,8 +2225,10 @@ class ComLauncherApp:
                   if hasattr(analysis_module, 'diagnose_button') and analysis_module.diagnose_button and analysis_module.diagnose_button.winfo_exists():
                        analysis_module.diagnose_button.config(state=diagnose_enabled_state)
 
+                  # Check if analysis output has content via the module's helper method
                   analysis_has_content = hasattr(analysis_module, 'has_analysis_output_content') and analysis_module.has_analysis_output_content()
 
+                  # Fix button is enabled if diagnose is enabled AND an update/fix task is NOT running, AND there is content in the analysis output AND modal is closed
                   fix_enabled_state = tk.DISABLED
                   if diagnose_enabled_state == tk.NORMAL and analysis_has_content and not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
                        fix_enabled_state = tk.NORMAL
@@ -1990,54 +2236,65 @@ class ComLauncherApp:
                   if hasattr(analysis_module, 'fix_button') and analysis_module.fix_button and analysis_module.fix_button.winfo_exists():
                        analysis_module.fix_button.config(state=fix_enabled_state)
 
+                  # User request text area is enabled if no task/start/stop running AND modal is closed (Bug 3 Fix check)
                   user_request_enabled_state = tk.DISABLED
                   if not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
                        user_request_enabled_state = tk.NORMAL
 
+                  # Set the state of the user request text widget via the module's helper method
                   if hasattr(analysis_module, 'set_user_request_state'):
-                      analysis_module.set_user_request_state(user_request_enabled_state)
+                      widget_state = tk.NORMAL if user_request_enabled_state == tk.NORMAL else tk.DISABLED
+                      analysis_module.set_user_request_state(widget_state)
 
              except tk.TclError as e:
                   print(f"[Launcher WARNING] Error updating Analysis UI state: {e}")
              except AttributeError as e:
-                  print(f"[Launcher WARNING] Error updating Analysis UI state (attribute missing): {e}")
+                  print(f"[Launcher WARNING] Error updating Analysis UI state (attribute missing in module): {e}")
              except Exception as e:
                   print(f"[Launcher ERROR] Unexpected error updating Analysis UI state: {e}")
         else:
-             try:
-                  # Disable analysis buttons if module not loaded (defensive checks)
-                  if hasattr(self, 'modules') and self.modules.get('analysis'):
-                       if hasattr(self.modules['analysis'], 'diagnose_button') and self.modules['analysis'].diagnose_button and self.modules['analysis'].diagnose_button.winfo_exists():
-                            self.modules['analysis'].diagnose_button.config(state=tk.DISABLED)
-                       if hasattr(self.modules['analysis'], 'fix_button') and self.modules['analysis'].fix_button and self.modules['analysis'].fix_button.winfo_exists():
-                            self.modules['analysis'].fix_button.config(state=tk.DISABLED)
-                       if hasattr(self.modules['analysis'], 'user_request_text') and self.modules['analysis'].user_request_text and self.modules['analysis'].user_request_text.winfo_exists():
-                            self.modules['analysis'].user_request_text.config(state=tk.DISABLED)
-             except Exception:
-                  pass
+             # If analysis module is not loaded, disable its buttons/widgets (defensive)
+             for mod_name in ['analysis']:
+                   if self.modules.get(mod_name):
+                       mod_instance = self.modules[mod_name]
+                       for attr_name in ['diagnose_button', 'fix_button', 'user_request_text']:
+                             if hasattr(mod_instance, attr_name):
+                                  widget = getattr(mod_instance, attr_name)
+                                  if widget and widget.winfo_exists():
+                                       try:
+                                            # ScrolledText uses 'normal'/'disabled'
+                                            widget_state = tk.DISABLED if attr_name != 'user_request_text' else tk.DISABLED
+                                            widget.config(state=widget_state)
+                                       except tk.TclError:
+                                            pass # Widget might have been destroyed
 
 
     def reset_ui_on_error(self):
         """Resets UI state after a service encounters an error."""
         print("[Launcher INFO] Resetting UI on error.")
         try:
+            # Stop progress bar if it's running
             if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists() and self.progress_bar.winfo_ismapped():
                 self.progress_bar.stop()
         except tk.TclError:
             pass
 
+        # Ensure internal state flags are reset
         if self.comfyui_process and self.comfyui_process.poll() is not None:
             self.comfyui_process = None
         self.stop_event.clear()
         self.backend_browser_triggered_for_session = False
         self.comfyui_ready_marker_sent = False
+        # Keep external detection status as it might still be running outside
+        # self.comfyui_externally_detected = False # Maybe don't reset this on *internal* error?
 
-        self._update_task_running = False
+        self._update_task_running = False # Ensure task flag is clear
 
         # Attempt to cleanup modal if it's open via the management module
         if self.modules.get('management') and hasattr(self.modules['management'], 'is_modal_open') and self.modules['management'].is_modal_open():
              if hasattr(self.modules['management'], '_cleanup_modal_state'):
                  self.modules['management']._cleanup_modal_state()
+
 
         self.root.after(0, self._update_ui_state)
 
@@ -2047,7 +2304,7 @@ class ComLauncherApp:
         comfy_is_active = self._is_comfyui_running() or self.comfyui_externally_detected
         if comfy_is_active and not self.backend_browser_triggered_for_session:
             self.backend_browser_triggered_for_session = True
-            self.root.after(100, self._open_frontend_browser)
+            self.root.after(100, self._open_frontend_browser) # Slight delay to ensure port is fully open
         elif not comfy_is_active:
              print("[Launcher DEBUG] Browser trigger skipped - ComfyUI stopped or not detected.")
 
@@ -2055,6 +2312,7 @@ class ComLauncherApp:
     def _open_frontend_browser_from_settings(self):
         """Opens the ComfyUI URL configured in settings."""
         try:
+            # Get the current port value from the StringVar
             port_str = self.comfyui_api_port_var.get()
             port = int(port_str)
             if not (1 <= port <= 65535):
@@ -2071,8 +2329,10 @@ class ComLauncherApp:
 
     def _open_frontend_browser(self):
         """Opens the ComfyUI backend URL derived from config."""
+        # Ensure derived paths are up-to-date before getting the port
         self.update_derived_paths()
         try:
+            # Use the derived port (from config, updated by update_derived_paths)
             port = int(self.comfyui_api_port)
             if not (1 <= port <= 65535):
                  raise ValueError("Invalid derived port")
@@ -2102,6 +2362,7 @@ class ComLauncherApp:
             self.log_to_gui("Launcher", f"Git pull failed: Git path invalid '{git_exe}'", "error")
             return
 
+        # Use the base directory of the currently running script
         launcher_dir = self.base_project_dir
         if not os.path.isdir(os.path.join(launcher_dir, ".git")):
             messagebox.showerror("非 Git 仓库", f"当前启动器目录不是一个有效的 Git 仓库:\n{launcher_dir}\n无法执行 Git pull。", parent=self.root)
@@ -2113,28 +2374,36 @@ class ComLauncherApp:
         try:
             command_parts = []
             if platform.system() == "Windows":
+                # Use start cmd /k for a new window that stays open
+                # Quote paths with spaces
                 quoted_launcher_dir = shlex.quote(launcher_dir)
                 quoted_git_exe = shlex.quote(git_exe)
+                # Use && to chain commands. pause > nul waits for keypress without output.
                 cmd_string = f'cd /d {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo. && echo 操作完成，按任意键关闭此窗口... && pause > nul'
+                # Use CREATE_NEW_CONSOLE to ensure it's a separate window
                 subprocess.Popen(['cmd', '/c', f'start cmd /k "{cmd_string}"'], creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS)
 
-            elif platform.system() == "Darwin":
+            elif platform.system() == "Darwin": # macOS
                  script = f'''
                  tell application "Terminal"
                      activate
                      do script "cd {shlex.quote(launcher_dir)}; {shlex.quote(git_exe)} pull --prune; echo \\"操作完成，按 Enter 关闭窗口...\\"; read; exit"
                  end tell
                  '''
+                 # Run AppleScript via osascript
                  subprocess.run(['osascript', '-e', script], check=True)
 
-            else:
-                terminal_emulator = "xterm"
-                for term in ["gnome-terminal", "konsole", "xfce4-terminal", "lxterminal", "urxvt"]:
+            else: # Linux and other Unix-like
+                terminal_emulator = "xterm" # Default fallback
+                # Attempt to find a more common terminal emulator
+                for term in ["gnome-terminal", "konsole", "xfce4-terminal", "lxterminal", "urxvt", "alacritty", "kitty", "st", "terminator"]:
                      if shutil.which(term):
                           terminal_emulator = term
                           break
                 quoted_launcher_dir = shlex.quote(launcher_dir)
                 quoted_git_exe = shlex.quote(git_exe)
+                # Use -e to execute a command string in the terminal
+                # Chain commands with &&, use read for pause, then exit
                 cmd_in_terminal = f'bash -c "cd {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo \\"操作完成，按 Enter 关闭窗口...\\" && read && exit"'
                 command_parts = [terminal_emulator, "-e", cmd_in_terminal]
                 subprocess.Popen(command_parts)
@@ -2150,82 +2419,106 @@ class ComLauncherApp:
             self.log_to_gui("Launcher", f"执行 'git pull' failed: {e}", "error")
 
 
+    # MOD4: Implement saving logs on close
     def on_closing(self):
         """Handles the application closing event, stops services, saves logs, and destroys window."""
         print("[Launcher INFO] Closing application requested.")
 
+        # --- Save Logs Before Closing ---
         self.log_to_gui("Launcher", "正在保存日志...", "info")
         launcher_logs_content = ""
         comfyui_logs_content = ""
 
         try:
+            # Safely access the log text widgets via instance variables
             if hasattr(self, 'launcher_log_text') and self.launcher_log_text and self.launcher_log_text.winfo_exists():
+                 # Get all text from Launcher log
                  launcher_logs_content = self.launcher_log_text.get("1.0", tk.END).strip()
             if hasattr(self, 'main_output_text') and self.main_output_text and self.main_output_text.winfo_exists():
+                 # Get all text from ComfyUI log
                  comfyui_logs_content = self.main_output_text.get("1.0", tk.END).strip()
 
+            # Format the combined log content as specified (Corrected header)
             combined_log_content = f"""
-@@@@@@@@@ComLauncher日志
+@@@@@@@@@ComLauncher后台日志
 {launcher_logs_content if launcher_logs_content else "（无）"}
 
 @@@@@@@@@ComfyUI日志
 {comfyui_logs_content if comfyui_logs_content else "（无）"}
 """
+            # Ensure log file is in the ui_modules directory (Correct path used)
             try:
                  os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
                  with open(LOG_FILE, 'w', encoding='utf-8') as f:
-                      f.write(combined_log_content.strip())
+                      f.write(combined_log_content.strip()) # Strip leading/trailing whitespace from the formatted block
                  print(f"[Launcher INFO] Logs saved to {LOG_FILE}")
             except Exception as e:
                  print(f"[Launcher ERROR] Failed to save logs to {LOG_FILE}: {e}")
 
-
         except Exception as e:
             print(f"[Launcher ERROR] Failed to retrieve logs on closing: {e}")
+            # Do not show a messagebox here, just log the error
 
 
+        # --- Stop Services ---
+        # Check if any managed process is running
         process_running = self._is_comfyui_running()
         task_running = self._is_update_task_running()
+        # Also check for externally detected ComfyUI, although we can't stop it,
+        # the user might want to know something is still active.
+        comfy_externally_detected = self.comfyui_externally_detected
 
-        if process_running or task_running:
+
+        if process_running or comfy_externally_detected or task_running:
+             # Use self.root as parent for the messagebox
              confirm_stop = messagebox.askyesno("进程运行中", "有后台进程（ComfyUI 或更新任务）正在运行。\n是否在退出前停止？", parent=self.root)
              if confirm_stop:
                  self.log_to_gui("Launcher", "正在停止后台进程...", "info")
-                 self.stop_all_services()
-                 wait_timeout = 15
+                 self.stop_all_services() # This signals threads and handles ComfyUI process
+                 wait_timeout = 15 # seconds
                  start_time = time.time()
+                 # Wait for processes/tasks to signal completion (by clearing flags)
+                 # Use getter methods and check the process poll state
                  while (self._is_comfyui_running() or self._is_update_task_running()) and (time.time() - start_time < wait_timeout):
                      try:
                          if self.root and self.root.winfo_exists():
-                              self.root.update()
-                     except tk.TclError:
-                          break
-                     time.sleep(0.1)
+                              self.root.update() # Process Tkinter events while waiting
+                     except tk.TclError: # Handle root window being destroyed early
+                          break # Exit wait loop if GUI is gone
+                     time.sleep(0.1) # Small delay
 
                  if self._is_comfyui_running() or self._is_update_task_running():
                       print("[Launcher WARNING] Processes did not stop gracefully within timeout, forcing exit.")
                       self.log_to_gui("Launcher", "未能完全停止后台进程，强制退出。", "warn")
+                      # Attempt to kill subprocesses if they are still alive
                       if self.comfyui_process and self.comfyui_process.poll() is None:
                            try:
                                self.comfyui_process.kill()
                            except Exception:
-                               pass
+                               pass # Ignore errors on kill
+                      # The worker thread should ideally respond to stop_event, but if not, it's daemon and will exit with app
 
+                 # Processes should be stopped by now, or will be killed on exit.
+                 # Now safe to destroy the GUI.
                  try:
                       if self.root and self.root.winfo_exists():
                           self.root.destroy()
                  except tk.TclError:
-                     pass
+                     pass # Ignore if already destroyed
 
              else:
+                  # User chose not to stop, signal threads to stop if possible, then destroy GUI
                   print("[Launcher INFO] User chose not to stop processes, attempting direct termination.")
-                  self.stop_event.set()
+                  self.stop_event.set() # Signal worker thread
                   if self.comfyui_process and self.comfyui_process.poll() is None:
                        try:
-                           self.comfyui_process.terminate()
+                           self.comfyui_process.terminate() # Try graceful termination first
                        except Exception:
-                           pass
+                           pass # Ignore errors on terminate
+                  # GUI will be destroyed below
 
+        # --- Destroy GUI ---
+        # Ensure the GUI is destroyed whether or not processes were running/stopped
         try:
              if self.root and self.root.winfo_exists():
                  self.root.destroy()
@@ -2235,9 +2528,10 @@ class ComLauncherApp:
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    root = None
-    app = None
+    root = None # Define root outside try for error handling
+    app = None # Define app outside try
     try:
+        # Fix blurry fonts on Windows high DPI displays
         if platform.system() == "Windows":
             try:
                 from ctypes import windll
@@ -2245,12 +2539,14 @@ if __name__ == "__main__":
                 # SetProcessDPIAware is older Windows
                 try:
                     # Try setting DPI awareness for the process
-                    windll.shcore.SetProcessDpiAwareness(1) # PROCESS_DPI_AWARENESS.PROCESS_SYSTEM_DPI_AWARE
-                    print("[Launcher INFO] Using SetProcessDpiAwareness(1)")
+                    # PROCESS_DPI_AWARENESS.PROCESS_SYSTEM_DPI_AWARE (1) or PROCESS_PER_MONITOR_DPI_AWARE (2)
+                    # Setting it to 1 (System) is usually sufficient for Tkinter to scale correctly
+                    windll.shcore.SetProcessDpiAwareness(1)
+                    # print("[Launcher INFO] Using SetProcessDpiAwareness(1)") # Debug print
                 except (AttributeError, OSError): # OSError can be raised if the function isn't found
                      try:
                          windll.user32.SetProcessDPIAware()
-                         print("[Launcher INFO] Using SetProcessDPIAware()")
+                         # print("[Launcher INFO] Using SetProcessDPIAware()") # Debug print
                      except (AttributeError, OSError):
                          print("[Launcher WARNING] No DPI awareness function found.")
                 except Exception as e:
@@ -2258,6 +2554,7 @@ if __name__ == "__main__":
 
             except Exception as e:
                 print(f"[Launcher WARNING] Error during Windows DPI setup: {e}")
+
 
         root = tk.Tk()
         app = ComLauncherApp(root)
@@ -2274,8 +2571,9 @@ if __name__ == "__main__":
         try:
             launcher_logs_content = ""
             comfyui_logs_content = ""
-            if app:
+            if app: # If app instance was created
                  try:
+                     # Safely access log widgets via the app instance
                      if hasattr(app, 'launcher_log_text') and app.launcher_log_text and app.launcher_log_text.winfo_exists():
                          launcher_logs_content = app.launcher_log_text.get("1.0", tk.END).strip()
                      if hasattr(app, 'main_output_text') and app.main_output_text and app.main_output_text.winfo_exists():
@@ -2283,9 +2581,9 @@ if __name__ == "__main__":
                  except tk.TclError:
                      print("[Launcher CRITICAL] Error getting logs from widgets during crash handling.")
 
-            # Format the combined log content
+            # Format the combined log content (Corrected header)
             combined_log_content = f"""
-@@@@@@@@@ComLauncher日志
+@@@@@@@@@ComLauncher后台日志
 {launcher_logs_content if launcher_logs_content else "（无）"}
 
 @@@@@@@@@ComfyUI日志
@@ -2308,11 +2606,13 @@ if __name__ == "__main__":
 
         # Attempt to show error message box
         try:
+             # Ensure a root window exists to host the messagebox
              if not root or not isinstance(root, tk.Tk) or not root.winfo_exists():
+                  # Create a temporary root if the main one failed or was destroyed
                   temp_root = tk.Tk()
-                  temp_root.withdraw()
+                  temp_root.withdraw() # Hide the temporary window
                   messagebox.showerror("致命错误 / Fatal Error", f"应用程序遇到致命错误并需要关闭：\n{e}\n错误详情已保存到 ComLauncher_crash.log 文件。", parent=temp_root)
-                  temp_root.destroy()
+                  temp_root.destroy() # Clean up temporary root
              else:
                   messagebox.showerror("致命错误 / Fatal Error", f"应用程序遇到致命错误并需要关闭：\n{e}\n错误详情已保存到 ComLauncher_crash.log 文件。", parent=root)
 
