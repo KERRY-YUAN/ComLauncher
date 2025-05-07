@@ -1,0 +1,590 @@
+[
+    {
+        "type": "branch",
+        "name": "origin",
+        "commit_id": "271c9c5b9eb027c682161ed7848bbf640253f973",
+        "date_iso": "2025-05-06T09:52:37-04:00",
+        "description": "Better mem estimation for the LTXV 13B model. (#7963)"
+    },
+    {
+        "type": "branch",
+        "name": "master",
+        "commit_id": "271c9c5b9eb027c682161ed7848bbf640253f973",
+        "date_iso": "2025-05-06T09:52:37-04:00",
+        "description": "Better mem estimation for the LTXV 13B model. (#7963)"
+    },
+    {
+        "type": "branch",
+        "name": "desktop-release-may062025",
+        "commit_id": "1271c4ef9df2b4eb037688da514f63e1bd8bd727",
+        "date_iso": "2025-05-06T04:23:00-04:00",
+        "description": "More API Nodes (#7956)"
+    },
+    {
+        "type": "branch",
+        "name": "prep-branch",
+        "commit_id": "72ee7a22ee99f34ef592feef6b861a9c857bdf23",
+        "date_iso": "2025-05-06T03:08:44-05:00",
+        "description": "Bump frontend to 1.18.9"
+    },
+    {
+        "type": "branch",
+        "name": "yoland68-patch-3",
+        "commit_id": "b54566746921bc65c68b8228dca0a22b598ba15e",
+        "date_iso": "2025-05-06T02:42:31-04:00",
+        "description": "Update test-build.yml"
+    },
+    {
+        "type": "branch",
+        "name": "yoland68-patch-2",
+        "commit_id": "c3fa3d269aacf34cef1288597664bc53a5e6d5b8",
+        "date_iso": "2025-05-06T02:41:37-04:00",
+        "description": "Remove 3.9 from test-ci.yml"
+    },
+    {
+        "type": "branch",
+        "name": "desktop-release-apr242025",
+        "commit_id": "188b383c35f0a790e407cb337dd554fccb188f6f",
+        "date_iso": "2025-04-23T17:53:34-04:00",
+        "description": "change timeout to 7 days (#7765)"
+    },
+    {
+        "type": "branch",
+        "name": "api-nodes",
+        "commit_id": "66fdbd5eebffda2ffaeef39fcad1841b64eb61c2",
+        "date_iso": "2025-04-23T12:47:59-07:00",
+        "description": "Merge branch 'master' into api-nodes"
+    },
+    {
+        "type": "branch",
+        "name": "worksplit-multigpu",
+        "commit_id": "272e8d42c1870e53810c9b1b715606da8c444ba9",
+        "date_iso": "2025-04-22T22:40:00-05:00",
+        "description": "Merge branch 'master' into worksplit-multigpu"
+    },
+    {
+        "type": "branch",
+        "name": "socketless",
+        "commit_id": "e0cfe5869dc31d8b793980418751b2a09661cafc",
+        "date_iso": "2025-04-22T05:29:54+10:00",
+        "description": "nit - Doc"
+    },
+    {
+        "type": "branch",
+        "name": "robinjhuang-patch-1",
+        "commit_id": "7e49ba6cbc25793bf0fe0b0232841e829b409024",
+        "date_iso": "2025-04-19T12:11:11-07:00",
+        "description": "Add wanfun template workflows."
+    },
+    {
+        "type": "branch",
+        "name": "yoland68-more-owner-updates",
+        "commit_id": "077148fe182e7f0fd69baa210e524b9e331c06ed",
+        "date_iso": "2025-04-18T16:14:17-07:00",
+        "description": "Update CODEOWNERS with more files and folders"
+    },
+    {
+        "type": "branch",
+        "name": "desktop-release-apr222025",
+        "commit_id": "7ecd5e961465d9bb20fb12b7068e1930da875b0e",
+        "date_iso": "2025-04-18T03:16:16-04:00",
+        "description": "Increase freq_cutoff in FreSca node."
+    },
+    {
+        "type": "branch",
+        "name": "yoland68-patch-1",
+        "commit_id": "3d5b5b2c951a84e04e0e760485611df70b6b8f1b",
+        "date_iso": "2025-04-17T14:17:40-07:00",
+        "description": "Update pullrequest-ci-run.yml"
+    },
+    {
+        "type": "branch",
+        "name": "desktop-release-april172025",
+        "commit_id": "05d5a75cdcb749286c9ce9e034bb37a2f6195c37",
+        "date_iso": "2025-04-17T14:25:33-04:00",
+        "description": "Update frontend to 1.16 (Install templates as pip package) (#7623)"
+    },
+    {
+        "type": "branch",
+        "name": "not_required_typing",
+        "commit_id": "03df57399547176686773509ee95f26380320c3c",
+        "date_iso": "2025-04-15T21:20:46-04:00",
+        "description": "[Type] Mark input options NotRequired"
+    },
+    {
+        "type": "branch",
+        "name": "model_manager",
+        "commit_id": "fde9fdddff1109613c4428cd5c5cd8f9933eeca4",
+        "date_iso": "2025-03-28T11:46:05+08:00",
+        "description": "Allow running with non working"
+    },
+    {
+        "type": "branch",
+        "name": "huchenlei-patch-1",
+        "commit_id": "0d68603dfe2e342b2074f27ef099c6d027198677",
+        "date_iso": "2025-03-27T14:02:45-04:00",
+        "description": "Update frontend to 1.14.6"
+    },
+    {
+        "type": "branch",
+        "name": "yo-lora-trainer",
+        "commit_id": "d58ad2dd198ec0fc76d8dbc6c3ffbb893e881997",
+        "date_iso": "2025-03-26T17:30:42+08:00",
+        "description": "Expand supported image file extensions in LoadImageSetNode"
+    },
+    {
+        "type": "branch",
+        "name": "annoate_get_input_info",
+        "commit_id": "522d923948b9c1e3b265d417ee62783cc8c1e943",
+        "date_iso": "2025-03-25T16:47:52-04:00",
+        "description": "nit"
+    },
+    {
+        "type": "branch",
+        "name": "weight-zipper",
+        "commit_id": "c8037ab6679a3d1c3d6953981f95fc5d7633ee0d",
+        "date_iso": "2025-03-24T03:34:42-05:00",
+        "description": "Initial exploration of weight zipper"
+    },
+    {
+        "type": "branch",
+        "name": "required_frontend_ver",
+        "commit_id": "74a17e9460b5dade97f1af0d7def7f8816ca61a4",
+        "date_iso": "2025-03-21T17:10:28-04:00",
+        "description": "nit"
+    },
+    {
+        "type": "branch",
+        "name": "worksplit-multigpu-loaders",
+        "commit_id": "e5396e98d8635218f4a979ca7c09f256e9b3126f",
+        "date_iso": "2025-03-21T14:57:05-05:00",
+        "description": "Add VAELoaderDevice node to device what device to load VAE on"
+    },
+    {
+        "type": "branch",
+        "name": "video_output",
+        "commit_id": "60b459bb4c63402be1a8496ce07ee3fc8f961a6a",
+        "date_iso": "2025-03-18T17:12:02-04:00",
+        "description": "Change SaveWEBM node's output key from images to video"
+    },
+    {
+        "type": "branch",
+        "name": "rh-uvtest",
+        "commit_id": "eaba79602f19e4814a95657f17899ea33d4cb0fb",
+        "date_iso": "2025-03-13T16:28:12-07:00",
+        "description": "Add uv."
+    },
+    {
+        "type": "branch",
+        "name": "yo-add-precommit",
+        "commit_id": "ef0c2b08199eed7ace1daf9c8ca6790a4a462a57",
+        "date_iso": "2025-03-02T12:43:19-08:00",
+        "description": "Add pre-commit configuration and update README for backend development"
+    },
+    {
+        "type": "branch",
+        "name": "model_management",
+        "commit_id": "01110de8a311f6cca7ef91c32441134c756b75ba",
+        "date_iso": "2025-02-21T17:54:14Z",
+        "description": "Add tests for delete & update"
+    },
+    {
+        "type": "branch",
+        "name": "webfiltered-patch-1",
+        "commit_id": "9111457d5123606876f617405a27a09334b1219c",
+        "date_iso": "2025-02-21T17:46:09+11:00",
+        "description": "Update frontend release schedule in README."
+    },
+    {
+        "type": "branch",
+        "name": "model-paths-helper",
+        "commit_id": "095d8671476ebb7834d326ac31127cd5f3e27303",
+        "date_iso": "2025-02-09T07:02:57-05:00",
+        "description": "Remove useless function."
+    },
+    {
+        "type": "branch",
+        "name": "base-path-env-var",
+        "commit_id": "17b70728ec86aa571497fbb18b22201d7b620705",
+        "date_iso": "2025-01-23T18:09:15+11:00",
+        "description": "Allow override of models base path via env var"
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.2",
+        "commit_id": "bb775157355f7bfd93f3a89deeb5904153365ba1",
+        "date_iso": "2024-07-19T16:37:04-07:00",
+        "description": "v0.0.2"
+    },
+    {
+        "type": "tag",
+        "name": "latest",
+        "commit_id": "2ec6d1c6e364ab92e3d8149a83873ac47c797248",
+        "date_iso": "",
+        "description": "Don't import custom nodes when the folder ends with .disabled"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.32",
+        "commit_id": "0cf2e46b1725a5d0d6cb7b177a524026ca00f5a4",
+        "date_iso": "",
+        "description": "ComfyUI version 0.3.32"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.31",
+        "commit_id": "7689917113fe521adfaba2a4fff952ef1805ad2b",
+        "date_iso": "",
+        "description": "ComfyUI version 0.3.31"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.30",
+        "commit_id": "a97f2f850abd7dd330e6363c8d8074bb243eb413",
+        "date_iso": "",
+        "description": "ComfyUI version 0.3.30"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.29",
+        "commit_id": "93292bc450dd291925c45adea00ebedb8a3209ef",
+        "date_iso": "",
+        "description": "ComfyUI version 0.3.29"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.28",
+        "commit_id": "a14c2fc3565277dfe8ab0ecb22a86c1d0a1f72cf",
+        "date_iso": "",
+        "description": "ComfyUI version v0.3.28"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.27",
+        "commit_id": "75c1c757d90ca891eff823893248ef8b51d31d01",
+        "date_iso": "",
+        "description": "ComfyUI version v0.3.27"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.26",
+        "commit_id": "9aac21f894a122ddb8d825c57ad61c0db5e630db",
+        "date_iso": "",
+        "description": "Fix issues with new hunyuan img2vid model and bumb version to v0.3.26"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.25",
+        "commit_id": "2bc4b5968f7fbf0b6e65f2465b064c6af48f965a",
+        "date_iso": "",
+        "description": "ComfyUI version v0.3.25"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.24",
+        "commit_id": "a13125840c47c2342fa80aec8fdaee8626dff135",
+        "date_iso": "",
+        "description": "ComfyUI version v0.3.24"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.23",
+        "commit_id": "0124be4d93102a85ccfc9d1b223e0f39e1cfc571",
+        "date_iso": "",
+        "description": "ComfyUI version v0.3.23"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.22",
+        "commit_id": "889519971fe530abbdc689af20aa439c5e99875f",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.22"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.21",
+        "commit_id": "6d45ffbe231040fc0d5b98e9a08986f604552161",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.21"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.20",
+        "commit_id": "dc134b2fdbbd9fc40d04b760d24551b291f06776",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.20"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.19",
+        "commit_id": "8362199ee7d384bd1af113b53a19a3cbdd5ba97b",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.19"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.18",
+        "commit_id": "b07f116dea4e00b42df3fbbe045f4c8c76c9d97b",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.18"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.17",
+        "commit_id": "8e69e2ddfda965267e1c90ab1cc89d95541155b1",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.17"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.16",
+        "commit_id": "26c7baf78979c3923f090f35a1177a1eae71224d",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.16"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.15",
+        "commit_id": "b50ab153f96fd396ea26a76529f164c5ae3b50a6",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.15"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.14",
+        "commit_id": "debabccb847b24e6be7cf69deb9c66026364cb04",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.14"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.13",
+        "commit_id": "ef85058e977f886c88d4a30b819708b1168f39a4",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.13"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.12",
+        "commit_id": "55add502206ed5511a04215db4ab8f1cfa3d99ae",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to v0.3.12"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.11",
+        "commit_id": "619b8cde74538a1dc62b85e47e34daa493705c06",
+        "date_iso": "",
+        "description": "Bump ComfyUI version to 0.3.11"
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.10",
+        "commit_id": "ee9547ba31f5f2c1de0211a09c3fb829bd8e25e6",
+        "date_iso": "",
+        "description": "Improve temporal VAE Encode (Tiled) math."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.9",
+        "commit_id": "418eb7062dcbd5c68f869527a7bc34cff55ca87e",
+        "date_iso": "",
+        "description": "Support new LTXV VAE."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.8",
+        "commit_id": "9f4b181ab38b246961c5a51994a8357e62634de1",
+        "date_iso": "",
+        "description": "Add fast previews for hunyuan video."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.7",
+        "commit_id": "9a616b81c15cec7f5ddcbc12e349f1adc03fad67",
+        "date_iso": "",
+        "description": "Add rescaling_scale from STG to SkipLayerGuidanceDiT."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.6",
+        "commit_id": "8e4118c0de2c23098db4601fc25a4bd55868d82b",
+        "date_iso": "",
+        "description": "make dpm_2_ancestral work with rectified flow."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.5",
+        "commit_id": "4c82741b545c6cedcfa397034f56ce1377b3675a",
+        "date_iso": "",
+        "description": "Support official SD3.5 Controlnets."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.4",
+        "commit_id": "6e8cdcd3cb542ba9eb5a5e5a420eff06f59dd268",
+        "date_iso": "",
+        "description": "Fix some tiled VAE decoding issues with LTX-Video."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.3",
+        "commit_id": "bc6be6c11e48114889a368e8c3597df8aac64ae3",
+        "date_iso": "",
+        "description": "Some fixes to the lowvram system."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.2",
+        "commit_id": "94323a26a7ad97aae3eb5aea9d452332dc3b7deb",
+        "date_iso": "",
+        "description": "Remove prints."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.1",
+        "commit_id": "8f0009aad0591ceee59a147738aa227187b07898",
+        "date_iso": "",
+        "description": "Support new flux model variants."
+    },
+    {
+        "type": "tag",
+        "name": "v0.3.0",
+        "commit_id": "22535d05896cf78d84924c492c8cfc17b8786c05",
+        "date_iso": "",
+        "description": "Skip layer guidance now works on stable audio model."
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.7",
+        "commit_id": "696672905fd17af2654ced11e3ab590d6a555996",
+        "date_iso": "",
+        "description": "Add mochi support to readme."
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.6",
+        "commit_id": "65a865918277b9413571c00fa402c5ff0a224225",
+        "date_iso": "",
+        "description": "Update web content to release v1.3.26 (#5413)"
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.5",
+        "commit_id": "30c0c81351a14e6820c98ee22c24f3edc9062e55",
+        "date_iso": "",
+        "description": "Add a way to patch blocks in SD3."
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.4",
+        "commit_id": "8ce2a1052ca03183768da0aaa483024e58b8008c",
+        "date_iso": "",
+        "description": "Optimizations to --fast and scaled fp8."
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.3",
+        "commit_id": "5f9d5a244b0c753e8d1dd0975ad3982ffcb16e0f",
+        "date_iso": "",
+        "description": "Hotfix for the div zero occurrence when memory_used_encode is 0 (#5121)"
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.2",
+        "commit_id": "0c7c98a965bff25f9398a4b28dfc274bedad9f6c",
+        "date_iso": "",
+        "description": "Nodes using UNIQUE_ID as input are NOT_IDEMPOTENT (#4793)"
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.1",
+        "commit_id": "483004dd1d379837a06e1244e8e833ab1369dd50",
+        "date_iso": "",
+        "description": "Support newer glora format."
+    },
+    {
+        "type": "tag",
+        "name": "v0.2.0",
+        "commit_id": "f1c2301697cb1cd538f8d4190741935548bb6734",
+        "date_iso": "",
+        "description": "fix typo in stale-issues (#4735)"
+    },
+    {
+        "type": "tag",
+        "name": "v0.1.3",
+        "commit_id": "c6812947e98eb384250575d94108d9eb747765d9",
+        "date_iso": "",
+        "description": "Fix potential memory leak."
+    },
+    {
+        "type": "tag",
+        "name": "v0.1.2",
+        "commit_id": "7df42b9a2364bae6822fbd9e9fa10cea2e319ba3",
+        "date_iso": "",
+        "description": "Fix dora."
+    },
+    {
+        "type": "tag",
+        "name": "v0.1.1",
+        "commit_id": "bb4416dd5b2d7c2f34dc17e18761dd6b3d8b6ead",
+        "date_iso": "",
+        "description": "Fix task.status.status_str caused by #2666 (#4551)"
+    },
+    {
+        "type": "tag",
+        "name": "v0.1.0",
+        "commit_id": "904bf58e7d27eb254d20879e306042653debc4b3",
+        "date_iso": "",
+        "description": "Make --fast work on pytorch nightly."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.8",
+        "commit_id": "39fb74c5bd13a1dccf4d7293a2f7a755d9f43cbd",
+        "date_iso": "",
+        "description": "Fix bug when model cannot be partially unloaded."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.7",
+        "commit_id": "b8ffb2937f9daeaead6e9225f8f5d1dde6afc577",
+        "date_iso": "",
+        "description": "Memory tweaks."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.6",
+        "commit_id": "75b9b55b221fc95f7137a91e2349e45693e342b8",
+        "date_iso": "",
+        "description": "Fix issues with #4302 and support loading diffusers format flux."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.5",
+        "commit_id": "1b5b8ca81a5bc141ed40a94919fa5b6c81d8babb",
+        "date_iso": "",
+        "description": "Fix regression."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.4",
+        "commit_id": "b334605a6631c12bbe7b3aff6d77526f47acdf42",
+        "date_iso": "",
+        "description": "Fix OOMs happening in some cases."
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.3",
+        "commit_id": "1d47ec38d80bad2d57391105f3d34919728e66ad",
+        "date_iso": "",
+        "description": "Set torch version to be 2.3.1 for v0.0.3"
+    },
+    {
+        "type": "tag",
+        "name": "v0.0.1",
+        "commit_id": "4ca9b9cc29fefaa899cba67d61a8252ae9f16c0d",
+        "date_iso": "",
+        "description": "Add Github Workflow for releasing stable versions and standalone bundle. (#3949)"
+    }
+]

@@ -1,0 +1,1106 @@
+{
+    "local_nodes_only": [
+        {
+            "name": "__pycache__",
+            "status": "已安装",
+            "local_id": "N/A",
+            "local_commit_full": null,
+            "repo_info": "本地安装",
+            "repo_url": "本地安装",
+            "is_git": false,
+            "remote_branch": null
+        },
+        {
+            "name": "AIGODLIKE-COMFYUI-TRANSLATION",
+            "status": "已安装",
+            "local_id": "94903b39",
+            "local_commit_full": "94903b39c7c68e14151d7caf7c4f12702a3714fb",
+            "repo_info": "main 94903b39 (2025-03-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "cg-use-everywhere",
+            "status": "已安装",
+            "local_id": "5d37b777",
+            "local_commit_full": "5d37b777aaa7998f89c619ac85cb03faee35ee1d",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Advanced-ControlNet",
+            "status": "已安装",
+            "local_id": "da254b70",
+            "local_commit_full": "da254b700db562a22e03358b933c85a9a3392540",
+            "repo_info": "main da254b70 (2025-03-04)",
+            "repo_url": "https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-AnimateDiff-Evolved",
+            "status": "已安装",
+            "local_id": "a34036b6",
+            "local_commit_full": "a34036b662d69d155a4536b2ac65483ae941e257",
+            "repo_info": "main a34036b6 (2025-04-10)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Anyline",
+            "status": "已安装",
+            "local_id": "1ec3d61e",
+            "local_commit_full": "1ec3d61e7bd763139a51a5123457f61477117ef8",
+            "repo_info": "main 1ec3d61e (2024-08-30)",
+            "repo_url": "https://github.com/TheMistoAI/ComfyUI-Anyline.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-BrushNet",
+            "status": "已安装",
+            "local_id": "505d8ef9",
+            "local_commit_full": "505d8ef917ddf3896afd1926770ecc9b099704e2",
+            "repo_info": "main 505d8ef9 (2025-03-31)",
+            "repo_url": "https://github.com/nullquant/ComfyUI-BrushNet.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Crystools",
+            "status": "已安装",
+            "local_id": "0820a756",
+            "local_commit_full": "0820a7560bcc405ef6d0a7c5c53a83cc02ae7db2",
+            "repo_info": "main 0820a756 (2025-04-04)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Custom-Scripts",
+            "status": "已安装",
+            "local_id": "ba22ba11",
+            "local_commit_full": "ba22ba11e9073d45c5779d557593b2f106aac8b4",
+            "repo_info": "main aac13aa7 (2025-04-30)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Easy-Use",
+            "status": "已安装",
+            "local_id": "eff718c1",
+            "local_commit_full": "eff718c13f8605f43eea63166652ca76fd43ff29",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Florence2",
+            "status": "已安装",
+            "local_id": "18f62acf",
+            "local_commit_full": "18f62acf57b02f4e94282dcb74ee8f6dd7ca8878",
+            "repo_info": "main 18f62acf (2025-04-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-GGUF",
+            "status": "已安装",
+            "local_id": "66c50234",
+            "local_commit_full": "66c50234a45b949072f8c063147211037add9030",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Impact-Pack",
+            "status": "已安装",
+            "local_id": "839e5a9f",
+            "local_commit_full": "839e5a9f905a3766438d851ca9beea565c43cb36",
+            "repo_info": "Main cd34cfdd (2025-05-03)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "Main"
+        },
+        {
+            "name": "Comfyui-In-Context-Lora-Utils",
+            "status": "已安装",
+            "local_id": "ede1f33f",
+            "local_commit_full": "ede1f33f5889f9f6d5bcb3cc54a5904869f31a41",
+            "repo_info": "main ede1f33f (2025-04-03)",
+            "repo_url": "https://github.com/lrzjason/Comfyui-In-Context-Lora-Utils.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-inpaint-nodes",
+            "status": "已安装",
+            "local_id": "726e16ff",
+            "local_commit_full": "726e16ff2742be285b3da78b73333ba6227ad234",
+            "repo_info": "main 726e16ff (2025-03-31)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Inspire-Pack",
+            "status": "已安装",
+            "local_id": "0f38db41",
+            "local_commit_full": "0f38db4180ce7836a80765111b87d5b4376a7a45",
+            "repo_info": "main 0f38db41 (2025-04-13)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-KJNodes",
+            "status": "已安装",
+            "local_id": "3e3a1a8a",
+            "local_commit_full": "3e3a1a8aac61dc4515f6a7da74e026f05a80299f",
+            "repo_info": "main c3dc8210 (2025-04-25)",
+            "repo_url": "https://github.com/kijai/ComfyUI-KJNodes.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-layerdiffuse",
+            "status": "已安装",
+            "local_id": "b4f6a9e0",
+            "local_commit_full": "b4f6a9e024064a4489f774a8b91049ce0b606ea3",
+            "repo_info": "main b4f6a9e0 (2025-02-25)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Manager",
+            "status": "已安装",
+            "local_id": "a66bada8",
+            "local_commit_full": "a66bada8a34e74905530dad33aecd3b1665efe1d",
+            "repo_info": "main 9e132811 (2025-04-28)",
+            "repo_url": "https://github.com/ltdrdata/ComfyUI-Manager.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Miaoshouai-Tagger",
+            "status": "已安装",
+            "local_id": "9a4697be",
+            "local_commit_full": "9a4697bedff397ce5d9d52cc2b3cc6fd4bee1482",
+            "repo_info": "main bb92078e (2025-04-26)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-mixlab-nodes",
+            "status": "已安装",
+            "local_id": "b2bb1876",
+            "local_commit_full": "b2bb1876def6330fccf1e03cc69d2166cae7bedb",
+            "repo_info": "main b2bb1876 (2025-02-05)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-nunchaku",
+            "status": "已安装",
+            "local_id": "ee27b5d2",
+            "local_commit_full": "ee27b5d234e7f8031602176715d1ce6c348dd136",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-segment-anything-2",
+            "status": "已安装",
+            "local_id": "c59676b0",
+            "local_commit_full": "c59676b008a76237002926f684d0ca3a9b29ac54",
+            "repo_info": "main c59676b0 (2025-03-19)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-TeaCache",
+            "status": "已安装",
+            "local_id": "8d445e4b",
+            "local_commit_full": "8d445e4b7b9e466ba208bb79b121a81fd8ab2650",
+            "repo_info": "main 546145dc (2025-04-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-tensorops",
+            "status": "已安装",
+            "local_id": "d34488e3",
+            "local_commit_full": "d34488e3079ecd10db2fe867c3a7af568115faed",
+            "repo_info": "main d34488e3 (2024-10-26)",
+            "repo_url": "https://github.com/un-seen/comfyui-tensorops.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-TiledDiffusion",
+            "status": "已安装",
+            "local_id": "a155b1ba",
+            "local_commit_full": "a155b1bac39147381aeaa52b9be42e545626a44f",
+            "repo_info": "main a155b1ba (2025-03-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Transformers",
+            "status": "已安装",
+            "local_id": "417bd339",
+            "local_commit_full": "417bd339588d393d2f40974b5ffe8215c93ea04a",
+            "repo_info": "main 417bd339 (2024-06-22)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-various",
+            "status": "已安装",
+            "local_id": "5bd85aaf",
+            "local_commit_full": "5bd85aaf7616878471469c4ec7e11bbd0cef3bf2",
+            "repo_info": "main 5bd85aaf (2025-02-27)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-VideoHelperSuite",
+            "status": "已安装",
+            "local_id": "598e181e",
+            "local_commit_full": "598e181e97d50174cc18677dfcdaa7b9b6ec0cb2",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-WD14-Tagger",
+            "status": "已安装",
+            "local_id": "d3350176",
+            "local_commit_full": "d33501765c5bf3dca6e90e0ebaa962890999fbc5",
+            "repo_info": "main d3350176 (2024-10-23)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_AdvancedRefluxControl",
+            "status": "已安装",
+            "local_id": "04eaa307",
+            "local_commit_full": "04eaa3074f64cf3615254a8dd38f4feda58eb1ed",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_Comfyroll_CustomNodes",
+            "status": "已安装",
+            "local_id": "d78b780a",
+            "local_commit_full": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+            "repo_info": "main d78b780a (2024-01-24)",
+            "repo_url": "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_controlnet_aux",
+            "status": "已安装",
+            "local_id": "83463c2e",
+            "local_commit_full": "83463c2e4b04e729268e57f638b4212e0da4badc",
+            "repo_info": "main 83463c2e (2025-03-12)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_Custom_Nodes_AlekPet",
+            "status": "已安装",
+            "local_id": "d03493a4",
+            "local_commit_full": "d03493a49047032b00c43fc70dc8a4094267e91d",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_essentials",
+            "status": "已安装",
+            "local_id": "9d9f4bed",
+            "local_commit_full": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+            "repo_info": "main 9d9f4bed (2025-04-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_IPAdapter_plus",
+            "status": "已安装",
+            "local_id": "a0f451a5",
+            "local_commit_full": "a0f451a5113cf9becb0847b92884cb10cbdec0ef",
+            "repo_info": "main a0f451a5 (2025-04-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_JPS-Nodes",
+            "status": "已安装",
+            "local_id": "0e2a9aca",
+            "local_commit_full": "0e2a9aca02b17dde91577bfe4b65861df622dcaf",
+            "repo_info": "main 0e2a9aca (2024-04-21)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_LayerStyle",
+            "status": "已安装",
+            "local_id": "c0fb64d0",
+            "local_commit_full": "c0fb64d0ebcb81c6c445a8af79ecee24bc3845b0",
+            "repo_info": "main c0fb64d0 (2025-04-09)",
+            "repo_url": "https://github.com/chflame163/ComfyUI_LayerStyle.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_LLM_party",
+            "status": "已安装",
+            "local_id": "b98dbfa6",
+            "local_commit_full": "b98dbfa66cf342f2cefb3d56203af06c43d060e6",
+            "repo_info": "无远程跟踪",
+            "repo_url": "https://github.com/heshengtao/comfyui_LLM_party.git",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_Python_Executor",
+            "status": "已安装",
+            "local_id": "922ab57c",
+            "local_commit_full": "922ab57cba78e1b7c3dc0c0c7a5a2fac264ee01f",
+            "repo_info": "无远程跟踪",
+            "repo_url": "https://github.com/KERRY-YUAN/ComfyUI_Python_Executor.git",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_RH_APICall-main",
+            "status": "已安装",
+            "local_id": "N/A",
+            "local_commit_full": null,
+            "repo_info": "本地安装",
+            "repo_url": "本地安装",
+            "is_git": false,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_RH_OminiControl",
+            "status": "已安装",
+            "local_id": "10877358",
+            "local_commit_full": "1087735863547fd7fe1662d24760e133facc00fb",
+            "repo_info": "main 10877358 (2024-12-20)",
+            "repo_url": "https://github.com/HM-RunningHub/ComfyUI_RH_OminiControl.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_segment_anything",
+            "status": "已安装",
+            "local_id": "ab639559",
+            "local_commit_full": "ab6395596399d5048639cdab7e44ec9fae857a93",
+            "repo_info": "main ab639559 (2024-03-21)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_Simple_Executor",
+            "status": "已安装",
+            "local_id": "563793c1",
+            "local_commit_full": "563793c1fd062ca5f4facecdcfe14b23b2f29ee6",
+            "repo_info": "main 563793c1 (2025-04-09)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_SKBundle",
+            "status": "已安装",
+            "local_id": "b7fae97b",
+            "local_commit_full": "b7fae97ba9b4f95efd1d7766a4cbc0b9bed53a5d",
+            "repo_info": "main b7fae97b (2025-04-20)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_TGate",
+            "status": "已安装",
+            "local_id": "c19e1166",
+            "local_commit_full": "c19e11665508fd25360b7c5a688e228e8e04d25b",
+            "repo_info": "main c19e1166 (2024-09-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "Comfyui_TTP_Toolset",
+            "status": "已安装",
+            "local_id": "08fb8b98",
+            "local_commit_full": "08fb8b9808b844a0137399b6fd34eec1e13e62d3",
+            "repo_info": "main 08fb8b98 (2025-03-15)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_UltimateSDUpscale",
+            "status": "已安装",
+            "local_id": "778a475d",
+            "local_commit_full": "778a475dde8116a2066fe07f6c9ca15554e0b5be",
+            "repo_info": "main 778a475d (2025-03-06)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "Derfuu_ComfyUI_ModdedNodes",
+            "status": "已安装",
+            "local_id": "d0905bed",
+            "local_commit_full": "d0905bed31249f2bd0814c67585cf4fe3c77c015",
+            "repo_info": "master d0905bed (2024-06-22)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "master"
+        },
+        {
+            "name": "easyanimate",
+            "status": "已安装",
+            "local_id": "c2a70d17",
+            "local_commit_full": "c2a70d17daa1549a22129d0cd0e02053ecccd75c",
+            "repo_info": "main c2a70d17 (2025-03-06)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "efficiency-nodes-comfyui",
+            "status": "已安装",
+            "local_id": "9e3c5aa4",
+            "local_commit_full": "9e3c5aa4976ad457065ef06a0dfdfc66e17c59ee",
+            "repo_info": "main 9e3c5aa4 (2025-04-02)",
+            "repo_url": "https://github.com/jags111/efficiency-nodes-comfyui.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "rgthree-comfy",
+            "status": "已安装",
+            "local_id": "5dc53323",
+            "local_commit_full": "5dc53323e07a021038af9f2a4a06ebc071f7218c",
+            "repo_info": "main 5dc53323 (2025-04-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "sd-dynamic-thresholding",
+            "status": "已安装",
+            "local_id": "73e4e045",
+            "local_commit_full": "73e4e04565aa86237d66764ac58ffae1f7e40e48",
+            "repo_info": "master 73e4e045 (2025-03-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "master"
+        },
+        {
+            "name": "sd-ppp",
+            "status": "已安装",
+            "local_id": "e96988f4",
+            "local_commit_full": "e96988f4076922353d19f8a22128c3e16d17ab81",
+            "repo_info": "main 688836ef (2025-04-27)",
+            "repo_url": "https://github.com/zombieyang/sd-ppp.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "was-node-suite-comfyui",
+            "status": "已安装",
+            "local_id": "831199b8",
+            "local_commit_full": "831199b898394c0385576d80628fce6b7931d317",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        }
+    ],
+    "all_known_nodes": [
+        {
+            "name": "__pycache__",
+            "status": "已安装",
+            "local_id": "N/A",
+            "local_commit_full": null,
+            "repo_info": "本地安装",
+            "repo_url": "本地安装",
+            "is_git": false,
+            "remote_branch": null
+        },
+        {
+            "name": "AIGODLIKE-COMFYUI-TRANSLATION",
+            "status": "已安装",
+            "local_id": "94903b39",
+            "local_commit_full": "94903b39c7c68e14151d7caf7c4f12702a3714fb",
+            "repo_info": "main 94903b39 (2025-03-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "cg-use-everywhere",
+            "status": "已安装",
+            "local_id": "5d37b777",
+            "local_commit_full": "5d37b777aaa7998f89c619ac85cb03faee35ee1d",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Advanced-ControlNet",
+            "status": "已安装",
+            "local_id": "da254b70",
+            "local_commit_full": "da254b700db562a22e03358b933c85a9a3392540",
+            "repo_info": "main da254b70 (2025-03-04)",
+            "repo_url": "https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-AnimateDiff-Evolved",
+            "status": "已安装",
+            "local_id": "a34036b6",
+            "local_commit_full": "a34036b662d69d155a4536b2ac65483ae941e257",
+            "repo_info": "main a34036b6 (2025-04-10)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Anyline",
+            "status": "已安装",
+            "local_id": "1ec3d61e",
+            "local_commit_full": "1ec3d61e7bd763139a51a5123457f61477117ef8",
+            "repo_info": "main 1ec3d61e (2024-08-30)",
+            "repo_url": "https://github.com/TheMistoAI/ComfyUI-Anyline.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-BrushNet",
+            "status": "已安装",
+            "local_id": "505d8ef9",
+            "local_commit_full": "505d8ef917ddf3896afd1926770ecc9b099704e2",
+            "repo_info": "main 505d8ef9 (2025-03-31)",
+            "repo_url": "https://github.com/nullquant/ComfyUI-BrushNet.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Crystools",
+            "status": "已安装",
+            "local_id": "0820a756",
+            "local_commit_full": "0820a7560bcc405ef6d0a7c5c53a83cc02ae7db2",
+            "repo_info": "main 0820a756 (2025-04-04)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Custom-Scripts",
+            "status": "已安装",
+            "local_id": "ba22ba11",
+            "local_commit_full": "ba22ba11e9073d45c5779d557593b2f106aac8b4",
+            "repo_info": "main aac13aa7 (2025-04-30)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Easy-Use",
+            "status": "已安装",
+            "local_id": "eff718c1",
+            "local_commit_full": "eff718c13f8605f43eea63166652ca76fd43ff29",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Florence2",
+            "status": "已安装",
+            "local_id": "18f62acf",
+            "local_commit_full": "18f62acf57b02f4e94282dcb74ee8f6dd7ca8878",
+            "repo_info": "main 18f62acf (2025-04-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-GGUF",
+            "status": "已安装",
+            "local_id": "66c50234",
+            "local_commit_full": "66c50234a45b949072f8c063147211037add9030",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-Impact-Pack",
+            "status": "已安装",
+            "local_id": "839e5a9f",
+            "local_commit_full": "839e5a9f905a3766438d851ca9beea565c43cb36",
+            "repo_info": "Main cd34cfdd (2025-05-03)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "Main"
+        },
+        {
+            "name": "Comfyui-In-Context-Lora-Utils",
+            "status": "已安装",
+            "local_id": "ede1f33f",
+            "local_commit_full": "ede1f33f5889f9f6d5bcb3cc54a5904869f31a41",
+            "repo_info": "main ede1f33f (2025-04-03)",
+            "repo_url": "https://github.com/lrzjason/Comfyui-In-Context-Lora-Utils.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-inpaint-nodes",
+            "status": "已安装",
+            "local_id": "726e16ff",
+            "local_commit_full": "726e16ff2742be285b3da78b73333ba6227ad234",
+            "repo_info": "main 726e16ff (2025-03-31)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Inspire-Pack",
+            "status": "已安装",
+            "local_id": "0f38db41",
+            "local_commit_full": "0f38db4180ce7836a80765111b87d5b4376a7a45",
+            "repo_info": "main 0f38db41 (2025-04-13)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-KJNodes",
+            "status": "已安装",
+            "local_id": "3e3a1a8a",
+            "local_commit_full": "3e3a1a8aac61dc4515f6a7da74e026f05a80299f",
+            "repo_info": "main c3dc8210 (2025-04-25)",
+            "repo_url": "https://github.com/kijai/ComfyUI-KJNodes.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-layerdiffuse",
+            "status": "已安装",
+            "local_id": "b4f6a9e0",
+            "local_commit_full": "b4f6a9e024064a4489f774a8b91049ce0b606ea3",
+            "repo_info": "main b4f6a9e0 (2025-02-25)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Manager",
+            "status": "已安装",
+            "local_id": "a66bada8",
+            "local_commit_full": "a66bada8a34e74905530dad33aecd3b1665efe1d",
+            "repo_info": "main 9e132811 (2025-04-28)",
+            "repo_url": "https://github.com/ltdrdata/ComfyUI-Manager.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Miaoshouai-Tagger",
+            "status": "已安装",
+            "local_id": "9a4697be",
+            "local_commit_full": "9a4697bedff397ce5d9d52cc2b3cc6fd4bee1482",
+            "repo_info": "main bb92078e (2025-04-26)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-mixlab-nodes",
+            "status": "已安装",
+            "local_id": "b2bb1876",
+            "local_commit_full": "b2bb1876def6330fccf1e03cc69d2166cae7bedb",
+            "repo_info": "main b2bb1876 (2025-02-05)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-nunchaku",
+            "status": "已安装",
+            "local_id": "ee27b5d2",
+            "local_commit_full": "ee27b5d234e7f8031602176715d1ce6c348dd136",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-segment-anything-2",
+            "status": "已安装",
+            "local_id": "c59676b0",
+            "local_commit_full": "c59676b008a76237002926f684d0ca3a9b29ac54",
+            "repo_info": "main c59676b0 (2025-03-19)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-TeaCache",
+            "status": "已安装",
+            "local_id": "8d445e4b",
+            "local_commit_full": "8d445e4b7b9e466ba208bb79b121a81fd8ab2650",
+            "repo_info": "main 546145dc (2025-04-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-tensorops",
+            "status": "已安装",
+            "local_id": "d34488e3",
+            "local_commit_full": "d34488e3079ecd10db2fe867c3a7af568115faed",
+            "repo_info": "main d34488e3 (2024-10-26)",
+            "repo_url": "https://github.com/un-seen/comfyui-tensorops.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-TiledDiffusion",
+            "status": "已安装",
+            "local_id": "a155b1ba",
+            "local_commit_full": "a155b1bac39147381aeaa52b9be42e545626a44f",
+            "repo_info": "main a155b1ba (2025-03-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-Transformers",
+            "status": "已安装",
+            "local_id": "417bd339",
+            "local_commit_full": "417bd339588d393d2f40974b5ffe8215c93ea04a",
+            "repo_info": "main 417bd339 (2024-06-22)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui-various",
+            "status": "已安装",
+            "local_id": "5bd85aaf",
+            "local_commit_full": "5bd85aaf7616878471469c4ec7e11bbd0cef3bf2",
+            "repo_info": "main 5bd85aaf (2025-02-27)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI-VideoHelperSuite",
+            "status": "已安装",
+            "local_id": "598e181e",
+            "local_commit_full": "598e181e97d50174cc18677dfcdaa7b9b6ec0cb2",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI-WD14-Tagger",
+            "status": "已安装",
+            "local_id": "d3350176",
+            "local_commit_full": "d33501765c5bf3dca6e90e0ebaa962890999fbc5",
+            "repo_info": "main d3350176 (2024-10-23)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_AdvancedRefluxControl",
+            "status": "已安装",
+            "local_id": "04eaa307",
+            "local_commit_full": "04eaa3074f64cf3615254a8dd38f4feda58eb1ed",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_Comfyroll_CustomNodes",
+            "status": "已安装",
+            "local_id": "d78b780a",
+            "local_commit_full": "d78b780ae43fcf8c6b7c6505e6ffb4584281ceca",
+            "repo_info": "main d78b780a (2024-01-24)",
+            "repo_url": "https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_controlnet_aux",
+            "status": "已安装",
+            "local_id": "83463c2e",
+            "local_commit_full": "83463c2e4b04e729268e57f638b4212e0da4badc",
+            "repo_info": "main 83463c2e (2025-03-12)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_Custom_Nodes_AlekPet",
+            "status": "已安装",
+            "local_id": "d03493a4",
+            "local_commit_full": "d03493a49047032b00c43fc70dc8a4094267e91d",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_essentials",
+            "status": "已安装",
+            "local_id": "9d9f4bed",
+            "local_commit_full": "9d9f4bedfc9f0321c19faf71855e228c93bd0dc9",
+            "repo_info": "main 9d9f4bed (2025-04-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_IPAdapter_plus",
+            "status": "已安装",
+            "local_id": "a0f451a5",
+            "local_commit_full": "a0f451a5113cf9becb0847b92884cb10cbdec0ef",
+            "repo_info": "main a0f451a5 (2025-04-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_JPS-Nodes",
+            "status": "已安装",
+            "local_id": "0e2a9aca",
+            "local_commit_full": "0e2a9aca02b17dde91577bfe4b65861df622dcaf",
+            "repo_info": "main 0e2a9aca (2024-04-21)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_LayerStyle",
+            "status": "已安装",
+            "local_id": "c0fb64d0",
+            "local_commit_full": "c0fb64d0ebcb81c6c445a8af79ecee24bc3845b0",
+            "repo_info": "main c0fb64d0 (2025-04-09)",
+            "repo_url": "https://github.com/chflame163/ComfyUI_LayerStyle.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_LLM_party",
+            "status": "已安装",
+            "local_id": "b98dbfa6",
+            "local_commit_full": "b98dbfa66cf342f2cefb3d56203af06c43d060e6",
+            "repo_info": "无远程跟踪",
+            "repo_url": "https://github.com/heshengtao/comfyui_LLM_party.git",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_Python_Executor",
+            "status": "已安装",
+            "local_id": "922ab57c",
+            "local_commit_full": "922ab57cba78e1b7c3dc0c0c7a5a2fac264ee01f",
+            "repo_info": "无远程跟踪",
+            "repo_url": "https://github.com/KERRY-YUAN/ComfyUI_Python_Executor.git",
+            "is_git": true,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_RH_APICall-main",
+            "status": "已安装",
+            "local_id": "N/A",
+            "local_commit_full": null,
+            "repo_info": "本地安装",
+            "repo_url": "本地安装",
+            "is_git": false,
+            "remote_branch": null
+        },
+        {
+            "name": "ComfyUI_RH_OminiControl",
+            "status": "已安装",
+            "local_id": "10877358",
+            "local_commit_full": "1087735863547fd7fe1662d24760e133facc00fb",
+            "repo_info": "main 10877358 (2024-12-20)",
+            "repo_url": "https://github.com/HM-RunningHub/ComfyUI_RH_OminiControl.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "comfyui_segment_anything",
+            "status": "已安装",
+            "local_id": "ab639559",
+            "local_commit_full": "ab6395596399d5048639cdab7e44ec9fae857a93",
+            "repo_info": "main ab639559 (2024-03-21)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_Simple_Executor",
+            "status": "已安装",
+            "local_id": "563793c1",
+            "local_commit_full": "563793c1fd062ca5f4facecdcfe14b23b2f29ee6",
+            "repo_info": "main 563793c1 (2025-04-09)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_SKBundle",
+            "status": "已安装",
+            "local_id": "b7fae97b",
+            "local_commit_full": "b7fae97ba9b4f95efd1d7766a4cbc0b9bed53a5d",
+            "repo_info": "main b7fae97b (2025-04-20)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_TGate",
+            "status": "已安装",
+            "local_id": "c19e1166",
+            "local_commit_full": "c19e11665508fd25360b7c5a688e228e8e04d25b",
+            "repo_info": "main c19e1166 (2024-09-24)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "Comfyui_TTP_Toolset",
+            "status": "已安装",
+            "local_id": "08fb8b98",
+            "local_commit_full": "08fb8b9808b844a0137399b6fd34eec1e13e62d3",
+            "repo_info": "main 08fb8b98 (2025-03-15)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "ComfyUI_UltimateSDUpscale",
+            "status": "已安装",
+            "local_id": "778a475d",
+            "local_commit_full": "778a475dde8116a2066fe07f6c9ca15554e0b5be",
+            "repo_info": "main 778a475d (2025-03-06)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "Derfuu_ComfyUI_ModdedNodes",
+            "status": "已安装",
+            "local_id": "d0905bed",
+            "local_commit_full": "d0905bed31249f2bd0814c67585cf4fe3c77c015",
+            "repo_info": "master d0905bed (2024-06-22)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "master"
+        },
+        {
+            "name": "easyanimate",
+            "status": "已安装",
+            "local_id": "c2a70d17",
+            "local_commit_full": "c2a70d17daa1549a22129d0cd0e02053ecccd75c",
+            "repo_info": "main c2a70d17 (2025-03-06)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "efficiency-nodes-comfyui",
+            "status": "已安装",
+            "local_id": "9e3c5aa4",
+            "local_commit_full": "9e3c5aa4976ad457065ef06a0dfdfc66e17c59ee",
+            "repo_info": "main 9e3c5aa4 (2025-04-02)",
+            "repo_url": "https://github.com/jags111/efficiency-nodes-comfyui.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "rgthree-comfy",
+            "status": "已安装",
+            "local_id": "5dc53323",
+            "local_commit_full": "5dc53323e07a021038af9f2a4a06ebc071f7218c",
+            "repo_info": "main 5dc53323 (2025-04-18)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "sd-dynamic-thresholding",
+            "status": "已安装",
+            "local_id": "73e4e045",
+            "local_commit_full": "73e4e04565aa86237d66764ac58ffae1f7e40e48",
+            "repo_info": "master 73e4e045 (2025-03-14)",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": "master"
+        },
+        {
+            "name": "sd-ppp",
+            "status": "已安装",
+            "local_id": "e96988f4",
+            "local_commit_full": "e96988f4076922353d19f8a22128c3e16d17ab81",
+            "repo_info": "main 688836ef (2025-04-27)",
+            "repo_url": "https://github.com/zombieyang/sd-ppp.git",
+            "is_git": true,
+            "remote_branch": "main"
+        },
+        {
+            "name": "was-node-suite-comfyui",
+            "status": "已安装",
+            "local_id": "831199b8",
+            "local_commit_full": "831199b898394c0385576d80628fce6b7931d317",
+            "repo_info": "无远程跟踪",
+            "repo_url": "无远程仓库",
+            "is_git": true,
+            "remote_branch": null
+        }
+    ]
+}
