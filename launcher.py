@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: launcher.py
-# Version: Kerry, Ver. 2.5.10 (MODs: V2.5.9 base + Node History Modal Fix)
+# Version: Kerry, Ver. 2.5.11 (MODs: V2.5.10 base + Node History Modal Fix)
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, font as tkfont, filedialog, Toplevel # Import Toplevel for modal window
@@ -85,7 +85,7 @@ FONT_SIZE_NORMAL = 10
 FONT_SIZE_MONO = 9
 FONT_WEIGHT_BOLD = "bold"
 # MOD Version Update: Version updated
-VERSION_INFO = "Kerry, Ver. 2.5.10" # MOD: Version Updated
+VERSION_INFO = "Kerry, Ver. 2.5.11" # MOD: Version Updated
 
 # Special marker for queue
 _COMFYUI_READY_MARKER_ = "_COMFYUI_IS_READY_FOR_BROWSER_\n"
