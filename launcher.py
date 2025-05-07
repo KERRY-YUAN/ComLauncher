@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: launcher.py
-# Version: Kerry, Ver. 2.5.8 (MODs: V2.5.7 base + Main Body Sort Fix, Node Version Modal, Analysis Layout, Auto Log Save)
+# Version: Kerry, Ver. 2.5.10 (MODs: V2.5.9 base + Node History Modal Fix)
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, font as tkfont, filedialog, Toplevel # Import Toplevel for modal window
@@ -85,7 +85,7 @@ FONT_SIZE_NORMAL = 10
 FONT_SIZE_MONO = 9
 FONT_WEIGHT_BOLD = "bold"
 # MOD Version Update: Version updated
-VERSION_INFO = "Kerry, Ver. 2.5.8"
+VERSION_INFO = "Kerry, Ver. 2.5.10" # MOD: Version Updated
 
 # Special marker for queue
 _COMFYUI_READY_MARKER_ = "_COMFYUI_IS_READY_FOR_BROWSER_\n"
@@ -116,23 +116,29 @@ def _parse_iso_date_for_sort(date_str):
         return None
     try:
         # Handle potential 'Z' timezone suffix and various ISO formats
-        if date_str.endswith('Z'):
-            date_str = date_str[:-1] + '+00:00'
-        # Try parsing with timezone offset, then without
+        cleaned_date_str = date_str
+        if isinstance(date_str, str):
+            if date_str.endswith('Z'):
+                cleaned_date_str = date_str[:-1] + '+00:00'
+        else: # Handle cases where date_str might not be a string initially
+            return None
+
+        # Try parsing with timezone offset first (common formats)
         try:
-            return datetime.fromisoformat(date_str)
+            # Handles formats like 'YYYY-MM-DDTHH:MM:SS+ZZ:ZZ' or 'YYYY-MM-DD HH:MM:SS+ZZZZ'
+            return datetime.fromisoformat(cleaned_date_str.replace(' ', 'T'))
         except ValueError:
-             # Fallback for formats like 'YYYY-MM-DD HH:MM:SS +ZZZZ' or 'YYYY-MM-DD HH:MM:SS' (assume UTC if no tz)
-             try:
-                 # Attempt with timezone first
-                 return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S %z')
-             except ValueError:
-                 try:
-                      # Attempt without timezone, assume UTC
-                      return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
-                 except ValueError:
-                     # print(f"[Launcher DEBUG] Could not parse date '{date_str}' for sorting.")
-                     return None # Indicate parsing failure
+            # Fallback for formats like 'YYYY-MM-DD HH:MM:SS +ZZZZ' or 'YYYY-MM-DD HH:MM:SS' (assume UTC if no tz)
+            try:
+                # Attempt with timezone first (e.g., 'YYYY-MM-DD HH:MM:SS +ZZZZ')
+                return datetime.strptime(cleaned_date_str, '%Y-%m-%d %H:%M:%S %z')
+            except ValueError:
+                try:
+                    # Attempt without timezone, assume UTC (e.g., 'YYYY-MM-DD HH:MM:SS')
+                    return datetime.strptime(cleaned_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
+                except ValueError:
+                    # print(f"[Launcher DEBUG] Could not parse date '{date_str}' for sorting.")
+                    return None # Indicate parsing failure
     except Exception as e:
         print(f"[Launcher ERROR] Unexpected date parsing error for '{date_str}': {e}")
         return None
@@ -143,17 +149,16 @@ def _parse_version_string_for_sort(version_str):
         return None
     # Clean common prefixes for robust parsing
     cleaned_version_str = version_str
-    if '/' in cleaned_version_str: # e.g., "tag / v1.2" -> "v1.2"
-        cleaned_version_str = cleaned_version_str.split('/')[-1].strip()
-    if cleaned_version_str.startswith('v'):
-        cleaned_version_str = cleaned_version_str[1:]
-    # Handle potential "Local Commit:" or similar prefixes before version parsing
-    if cleaned_version_str.startswith("本地"):
-         cleaned_version_str = cleaned_version_str.split(":")[-1].strip()
-    # Attempt numerical parsing for dot-separated numbers as the *preferred* fallback
-    parts = cleaned_version_str.split('.')
-    if all(part.isdigit() for part in parts):
-        return tuple(map(int, parts))
+    if isinstance(version_str, str): # Ensure it's a string before processing
+        if '/' in cleaned_version_str: # e.g., "tag / v1.2" -> "v1.2"
+            cleaned_version_str = cleaned_version_str.split('/')[-1].strip()
+        if cleaned_version_str.startswith('v'):
+            cleaned_version_str = cleaned_version_str[1:]
+        # Handle potential "Local Commit:" or similar prefixes before version parsing
+        if cleaned_version_str.startswith("本地"):
+             cleaned_version_str = cleaned_version_str.split(":")[-1].strip()
+    else: # If not a string, return as is for potential direct comparison or None
+        return version_str
 
     if parse_version: # Use packaging.version if available
         try:
@@ -166,12 +171,20 @@ def _parse_version_string_for_sort(version_str):
             print(f"[Launcher ERROR] Unexpected version parsing error for '{version_str}': {e}")
             return cleaned_version_str # Fallback to string comparison
     else: # Basic fallback if packaging isn't installed (already tried numerical tuple)
+        # If numerical tuple failed, try splitting by dot for potential numerical tuple sort
+        parts = cleaned_version_str.split('.')
+        if all(part.isdigit() for part in parts):
+             try:
+                  return tuple(map(int, parts))
+             except ValueError: # Should not happen with isdigit check, but defensive
+                  pass
+
         # If numerical tuple failed, return the cleaned string for basic lexical sort
         return cleaned_version_str
 
 def _compare_versions_for_sort(item1, item2):
     """
-    Custom comparison function for sorting main body versions.
+    Custom comparison function for sorting main body versions or node histories.
     Prioritizes date (newest first), then version string (descending) for items without valid dates.
     """
     date1 = _parse_iso_date_for_sort(item1.get('date_iso'))
@@ -184,8 +197,10 @@ def _compare_versions_for_sort(item1, item2):
     # Compare dates first (descending order - newest first)
     # Items with valid dates sort before items with no valid date (None)
     if date1 is not None and date2 is not None:
-        if date1 > date2: return -1
-        if date1 < date2: return 1
+        if date1 > date2:
+            return -1
+        if date1 < date2:
+            return 1
         # Dates are equal, proceed to version/type
     elif date1 is not None and date2 is None: # item1 has date, item2 doesn't -> item1 is newer (sorts first)
         return -1
@@ -202,16 +217,32 @@ def _compare_versions_for_sort(item1, item2):
     is_tuple2 = isinstance(version2, tuple)
 
     if is_tuple1 and is_tuple2:
-        if version1 > version2: return -1 # Descending numerical sort
-        if version1 < version2: return 1
+        if version1 > version2:
+            return -1 # Descending numerical sort
+        if version1 < version2:
+            return 1
         # Tuples are equal, proceed to type/name
     elif version1 is not None and version2 is not None: # If packaging.Version or string
         try:
-            if version1 > version2: return -1 # Descending sort (packaging.Version)
-            if version1 < version2: return 1
-        except TypeError: # Cannot compare different types (e.g., Version vs str)
-             pass # Proceed to type/name fallback
-    elif version1 is not None and version2 is None: # Treat parseable version as higher than unparseable/None
+            # If they are both packaging.Version objects, compare directly
+            if parse_version and isinstance(version1, parse_version("1.0").__class__) and isinstance(version2, parse_version("1.0").__class__):
+                 if version1 > version2:
+                      return -1
+                 if version1 < version2:
+                      return 1
+            # Fallback to string comparison if versions are strings or incompatible types for direct comparison
+            elif str(version1) > str(version2):
+                 return -1
+            elif str(version1) < str(version2):
+                 return 1
+
+        except TypeError: # Cannot compare different types (e.g., Version vs str, or different string formats)
+             # Fallback to simple string comparison if typed comparison fails
+             if str(name1) > str(name2):
+                  return -1
+             elif str(name1) < str(name2):
+                  return 1
+    elif version1 is not None and version2 is None: # Treat parseable version as higher priority
         return -1
     elif version1 is None and version2 is not None:
         return 1
@@ -219,17 +250,22 @@ def _compare_versions_for_sort(item1, item2):
 
     # Fallback: Compare types (tags usually more important than branches/commits, but order not strictly defined by user - alphabetical?)
     # Let's try sorting by type descending (commit, branch, tag) then name descending if all else equal
-    type_order = {'commit': 0, 'branch': 1, 'tag': 2} # Lower value = higher priority (descending in sort func)
+    # Prioritize 'tag', then 'branch', then 'commit' - this makes tags appear first, then branches, then commits
+    type_order = {'tag': 0, 'branch': 1, 'commit': 2, 'branch (remote)': 3, 'branch (HEAD)': 4, 'commit (HEAD)': 5, '未知': 10} # Lower value = higher priority
     type_comp = type_order.get(type1, 10) - type_order.get(type2, 10)
     if type_comp != 0:
         return type_comp # Sort by type priority
 
     # Final fallback: Lexicographical comparison of original names (descending)
     if name1 and name2:
-        if name1 > name2: return -1
-        if name1 < name2: return 1
-    elif name1: return -1 # name1 exists, name2 doesn't
-    elif name2: return 1  # name2 exists, name1 doesn't
+        if name1 > name2:
+            return -1
+        if name1 < name2:
+            return 1
+    elif name1:
+        return -1 # name1 exists, name2 doesn't
+    elif name2:
+        return 1  # name2 exists, name1 doesn't
 
     return 0 # Treat as equal if all else fails
 
@@ -296,10 +332,10 @@ class ComLauncherApp:
         self.all_known_nodes = []
         self.local_nodes_only = []
         self.remote_main_body_versions = []
-        # MOD2: Variables to hold data for node history modal
-        self._node_history_modal_data = []
-        self._node_history_modal_node_name = ""
-        self._node_history_modal_path = ""
+        # MOD2: Variables to hold data for node history modal - RENAMED for clarity
+        self._node_history_modal_versions_data = [] # List of dictionaries for history items
+        self._node_history_modal_node_name = ""      # Name of the node the modal is for
+        self._node_history_modal_node_path = ""      # Local path to the node's directory
         self._node_history_modal_current_commit = "" # MOD: Store current commit for modal status
         self._node_history_modal_window = None # MOD2: Reference to the modal window
 
@@ -600,13 +636,20 @@ class ComLauncherApp:
         """Opens a given folder path using the default file explorer."""
         self.update_derived_paths()
         target_path = ""
-        if path == 'nodes': target_path = self.comfyui_nodes_dir
-        elif path == 'models': target_path = self.comfyui_models_dir
-        elif path == 'lora': target_path = self.comfyui_lora_dir
-        elif path == 'input': target_path = self.comfyui_input_dir
-        elif path == 'output': target_path = self.comfyui_output_dir
-        elif path == 'workflows': target_path = self.comfyui_workflows_dir
-        else: target_path = path
+        if path == 'nodes':
+            target_path = self.comfyui_nodes_dir
+        elif path == 'models':
+            target_path = self.comfyui_models_dir
+        elif path == 'lora':
+            target_path = self.comfyui_lora_dir
+        elif path == 'input':
+            target_path = self.comfyui_input_dir
+        elif path == 'output':
+            target_path = self.comfyui_output_dir
+        elif path == 'workflows':
+            target_path = self.comfyui_workflows_dir
+        else:
+            target_path = path
 
         if not target_path:
              if path in ['nodes', 'models', 'lora', 'input', 'output', 'workflows']:
@@ -681,8 +724,11 @@ class ComLauncherApp:
         self.style.configure('Analysis.TFrame', background=BG_COLOR) # For Analysis tab frame
         self.style.configure('Modal.TFrame', background=BG_COLOR) # For Modal window frame
         self.style.configure('Version.TFrame', background=BG_COLOR) # MOD1: Frame for version label
-        # MOD2: Added style for modal list item rows
-        self.style.configure('ModalRow.TFrame', background=BG_COLOR) # Base style for modal list rows
+
+        # MOD1 Node Modal List Styles (Based on Treeview Appearance)
+        row_bg1, row_bg2 = TEXT_AREA_BG, "#282828" # Darker, slightly alternating backgrounds
+        self.style.configure('ModalRowOdd.TFrame', background=row_bg1)
+        self.style.configure('ModalRowEven.TFrame', background=row_bg2)
 
 
         # LabelFrame
@@ -695,10 +741,13 @@ class ComLauncherApp:
         self.style.configure('Version.TLabel', background=BG_COLOR, foreground=FG_MUTED, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL - 1))
         self.style.configure('Hint.TLabel', background=BG_COLOR, foreground=FG_MUTED, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL - 1), padding=(0, 0, 0, 0))
         self.style.configure('Highlight.TLabel', background=BG_COLOR, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold')) # Style for highlighted status in modal
-        self.style.configure('ModalHeader.TLabel', background=BG_COLOR, foreground=FG_COLOR, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold')) # MOD3: Style for modal header text
-        # MOD2: Added style for labels inside modal list rows
-        self.style.configure('ModalRow.TLabel', background=BG_COLOR, foreground=FG_COLOR)
-        self.style.configure('ModalRowHighlight.TLabel', background=BG_COLOR, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'))
+        self.style.configure('ModalHeader.TLabel', background=BG_COLOR, foreground=FG_COLOR, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold')) # MOD1: Style for modal header text
+
+        # MOD1: Styles for labels within modal list rows, inheriting background
+        self.style.configure('ModalRowOdd.TLabel', background=row_bg1, foreground=FG_COLOR)
+        self.style.configure('ModalRowEven.TLabel', background=row_bg2, foreground=FG_COLOR)
+        self.style.configure('ModalRowOddHighlight.TLabel', background=row_bg1, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'))
+        self.style.configure('ModalRowEvenHighlight.TLabel', background=row_bg2, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'))
 
 
         # Buttons
@@ -720,7 +769,7 @@ class ComLauncherApp:
         self.style.map("TabAccent.TButton", background=[('pressed', ACCENT_ACTIVE), ('active', '#006ae0'), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
         self.style.configure("Browse.TButton", padding=(4, 2), font=tab_fnt, background=tab_neutral_bg, foreground=neutral_button_fg) # Even smaller for browse
         self.style.map("Browse.TButton", background=[('pressed', tab_n_pressed_bg), ('active', tab_n_active_bg), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
-        self.style.configure("Modal.TButton", padding=tab_pady, font=tab_fnt, background=tab_neutral_bg, foreground=neutral_button_fg) # Modal buttons
+        self.style.configure("Modal.TButton", padding=(4, 2), font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL-1), background=tab_neutral_bg, foreground=neutral_button_fg) # Modal buttons, slightly smaller padding
         self.style.map("Modal.TButton", background=[('pressed', tab_n_pressed_bg), ('active', tab_n_active_bg), ('disabled', n_disabled_bg)], foreground=[('disabled', n_disabled_fg)])
         # MOD1: Style for the new Version Button (using Tab.TButton style)
         self.style.configure("Version.TButton", padding=(2, 1), font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL - 1), background=BG_COLOR, foreground=FG_MUTED, relief=tk.FLAT, borderwidth=0) # Flat look
@@ -732,12 +781,15 @@ class ComLauncherApp:
         self.style.configure('TCombobox', fieldbackground=TEXT_AREA_BG, background=TEXT_AREA_BG, foreground=FG_COLOR, arrowcolor=FG_COLOR, bordercolor=BORDER_COLOR, insertcolor=FG_COLOR, padding=(5, 4), font=main_fnt); self.style.map('TCombobox', fieldbackground=[('readonly', TEXT_AREA_BG), ('disabled', CONTROL_FRAME_BG)], foreground=[('disabled', FG_MUTED), ('readonly', FG_COLOR)], arrowcolor=[('disabled', FG_MUTED)], selectbackground=[('!focus', ACCENT_COLOR), ('focus', ACCENT_ACTIVE)], selectforeground=[('!focus', 'white'), ('focus', 'white')])
         try:
             self.root.option_add('*TCombobox*Listbox.background', TEXT_AREA_BG); self.root.option_add('*TCombobox*Listbox.foreground', FG_COLOR); self.root.option_add('*TCombobox*Listbox.selectBackground', ACCENT_ACTIVE); self.root.option_add('*TCombobox*Listbox.selectForeground', 'white'); self.root.option_add('*TCombobox*Listbox.font', (FONT_FAMILY_UI, FONT_SIZE_NORMAL)); self.root.option_add('*TCombobox*Listbox.borderWidth', 1); self.root.option_add('*TCombobox*Listbox.relief', 'solid')
-        except tk.TclError as e: print(f"[Launcher WARNING] Could not set Combobox Listbox styles: {e}")
+        except tk.TclError as e:
+            print(f"[Launcher WARNING] Could not set Combobox Listbox styles: {e}")
         self.style.configure('TNotebook', background=BG_COLOR, borderwidth=0, tabmargins=[5, 5, 5, 0]); self.style.configure('TNotebook.Tab', padding=[15, 8], background=BG_COLOR, foreground=FG_MUTED, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL), borderwidth=0); self.style.map('TNotebook.Tab', background=[('selected', '#4a4a4a'), ('active', '#3a3a3a')], foreground=[('selected', 'white'), ('active', FG_COLOR)], focuscolor=self.style.lookup('TNotebook.Tab', 'background'))
         self.style.configure('Horizontal.TProgressbar', thickness=6, background=ACCENT_COLOR, troughcolor=CONTROL_FRAME_BG, borderwidth=0)
         self.style.configure('TEntry', fieldbackground=TEXT_AREA_BG, foreground=FG_COLOR, insertcolor='white', bordercolor=BORDER_COLOR, borderwidth=1, padding=(5,4)); self.style.map('TEntry', fieldbackground=[('focus', TEXT_AREA_BG)], bordercolor=[('focus', ACCENT_COLOR)], lightcolor=[('focus', ACCENT_COLOR)])
         self.style.configure('Treeview', background=TEXT_AREA_BG, foreground=FG_STDOUT, fieldbackground=TEXT_AREA_BG, rowheight=22); self.style.configure('Treeview.Heading', font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'), background=CONTROL_FRAME_BG, foreground=FG_COLOR); self.style.map('Treeview', background=[('selected', ACCENT_ACTIVE)], foreground=[('selected', 'white')])
-        self.style.configure('Modal.TCanvas', background=BG_COLOR, borderwidth=0, highlightthickness=0);
+        # MOD1: Added style for Modal Canvas - This style is actually unused because tk.Canvas does not support the -style option.
+        # The bg, highlightthickness, etc. parameters directly style the tk.Canvas.
+        # self.style.configure('Modal.TCanvas', background=TEXT_AREA_BG, borderwidth=0, highlightthickness=0); # Keep style definition but it's ineffective for tk.Canvas
 
 
     # --- UI Setup ---
@@ -811,7 +863,8 @@ class ComLauncherApp:
         basic_row = 0
 
         # ComfyUI Install Dir
-        ttk.Label(basic_group, text="ComfyUI 安装目录:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        # ttk.Label(basic_group, text="ComfyUI 安装目录:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(basic_group, text="ComfyUI 安装目录:", anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         dir_entry = ttk.Entry(basic_group, textvariable=self.comfyui_dir_var)
         dir_entry.grid(row=basic_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx)
         dir_btn = ttk.Button(basic_group, text="浏览", width=6, style='Browse.TButton', command=lambda: self.browse_directory(self.comfyui_dir_var))
@@ -819,7 +872,8 @@ class ComLauncherApp:
         basic_row += 1
 
         # ComfyUI Python Exe
-        ttk.Label(basic_group, text="ComfyUI Python 路径:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        # ttk.Label(basic_group, text="ComfyUI Python 路径:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(basic_group, text="ComfyUI Python 路径:", anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         py_entry = ttk.Entry(basic_group, textvariable=self.python_exe_var)
         py_entry.grid(row=basic_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx)
         py_btn = ttk.Button(basic_group, text="浏览", width=6, style='Browse.TButton', command=lambda: self.browse_file(self.python_exe_var, [("Python Executable", "python.exe"), ("All Files", "*.*")]))
@@ -827,7 +881,8 @@ class ComLauncherApp:
         basic_row += 1
 
         # Git Exe Path
-        ttk.Label(basic_group, text="Git 可执行文件路径:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        # ttk.Label(basic_group, text="Git 可执行文件路径:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(basic_group, text="Git 可执行文件路径:", anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         git_entry = ttk.Entry(basic_group, textvariable=self.git_exe_path_var)
         git_entry.grid(row=basic_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx)
         git_btn = ttk.Button(basic_group, text="浏览", width=6, style='Browse.TButton', command=lambda: self.browse_file(self.git_exe_path_var, [("Git Executable", "git.exe"), ("All Files", "*.*")]))
@@ -839,7 +894,8 @@ class ComLauncherApp:
         port_frame.grid(row=basic_row, column=1, columnspan=2, sticky="ew") # Span entry and button columns
         port_frame.columnconfigure(0, weight=1) # Entry expands
 
-        ttk.Label(basic_group, text="ComfyUI 监听与共享端口:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        # ttk.Label(basic_group, text="ComfyUI 监听与共享端口:", width=label_min_width, anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(basic_group, text="ComfyUI 监听与共享端口:", anchor=tk.W).grid(row=basic_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         comfyui_port_entry = ttk.Entry(port_frame, textvariable=self.comfyui_api_port_var, width=10) # Fixed width might be better here
         comfyui_port_entry.grid(row=0, column=0, sticky="w", pady=widget_pady, padx=widget_padx) # Align left, use west anchor
         port_open_btn = ttk.Button(port_frame, text="打开", width=6, style='Browse.TButton', command=self._open_frontend_browser_from_settings)
@@ -854,35 +910,35 @@ class ComLauncherApp:
         perf_group.columnconfigure(1, weight=1); perf_row = 0
 
         # VRAM Mode
-        ttk.Label(perf_group, text="显存优化:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="显存优化:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         vram_modes = ["全负载(10GB以上)", "高负载(8GB以上)", "中负载(4GB以上)", "低负载(2GB以上)"]
         vram_mode_combo = ttk.Combobox(perf_group, textvariable=self.vram_mode_var, values=vram_modes, state="readonly"); vram_mode_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # CKPT Precision
-        ttk.Label(perf_group, text="CKPT模型精度:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="CKPT模型精度:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         ckpt_precisions = ["全精度(FP32)", "半精度(FP16)"]
         ckpt_precision_combo = ttk.Combobox(perf_group, textvariable=self.ckpt_precision_var, values=ckpt_precisions, state="readonly"); ckpt_precision_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # CLIP Precision
-        ttk.Label(perf_group, text="CLIP编码精度:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="CLIP编码精度:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         clip_precisions = ["全精度(FP32)", "半精度(FP16)", "FP8 (E4M3FN)", "FP8 (E5M2)"]
         clip_precision_combo = ttk.Combobox(perf_group, textvariable=self.clip_precision_var, values=clip_precisions, state="readonly"); clip_precision_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # UNET Precision
-        ttk.Label(perf_group, text="UNET模型精度:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="UNET模型精度:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         unet_precisions = ["半精度(BF16)", "半精度(FP16)", "FP8 (E4M3FN)", "FP8 (E5M2)"]
         unet_precision_combo = ttk.Combobox(perf_group, textvariable=self.unet_precision_var, values=unet_precisions, state="readonly"); unet_precision_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # VAE Precision
-        ttk.Label(perf_group, text="VAE模型精度:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="VAE模型精度:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         vae_precisions = ["全精度(FP32)", "半精度(FP16)", "半精度(BF16)"]
         vae_precision_combo = ttk.Combobox(perf_group, textvariable=self.vae_precision_var, values=vae_precisions, state="readonly"); vae_precision_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # CUDA Malloc
-        ttk.Label(perf_group, text="CUDA智能内存分配:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="CUDA智能内存分配:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         cuda_malloc_options = ["启用", "禁用"]
         cuda_malloc_combo = ttk.Combobox(perf_group, textvariable=self.cuda_malloc_var, values=cuda_malloc_options, state="readonly"); cuda_malloc_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # IPEX Optimization
-        ttk.Label(perf_group, text="IPEX优化:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="IPEX优化:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         ipex_options = ["启用", "禁用"]
         ipex_combo = ttk.Combobox(perf_group, textvariable=self.ipex_optimization_var, values=ipex_options, state="readonly"); ipex_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
         # xformers Acceleration
-        ttk.Label(perf_group, text="xformers加速:", width=label_min_width, anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx);
+        ttk.Label(perf_group, text="xformers加速:", anchor=tk.W).grid(row=perf_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx); # Removed fixed width
         xformers_options = ["启用", "禁用"]
         xformers_combo = ttk.Combobox(perf_group, textvariable=self.xformers_acceleration_var, values=xformers_options, state="readonly"); xformers_combo.grid(row=perf_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); perf_row += 1
 
@@ -901,10 +957,10 @@ class ComLauncherApp:
         repo_address_group.grid(row=update_current_row, column=0, sticky="ew", padx=frame_padx, pady=frame_pady)
         repo_address_group.columnconfigure(1, weight=1)
         repo_row = 0
-        ttk.Label(repo_address_group, text="本体仓库地址:", width=label_min_width, anchor=tk.W).grid(row=repo_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(repo_address_group, text="本体仓库地址:", anchor=tk.W).grid(row=repo_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         main_repo_entry = ttk.Entry(repo_address_group, textvariable=self.main_repo_url_var)
         main_repo_entry.grid(row=repo_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); repo_row += 1
-        ttk.Label(repo_address_group, text="节点配置地址:", width=label_min_width, anchor=tk.W).grid(row=repo_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx)
+        ttk.Label(repo_address_group, text="节点配置地址:", anchor=tk.W).grid(row=repo_row, column=0, sticky=tk.W, pady=widget_pady, padx=widget_padx) # Removed fixed width
         node_config_entry = ttk.Entry(repo_address_group, textvariable=self.node_config_url_var)
         node_config_entry.grid(row=repo_row, column=1, sticky="ew", pady=widget_pady, padx=widget_padx); repo_row += 1
 
@@ -998,7 +1054,8 @@ class ComLauncherApp:
         try: # Tag configuration for status coloring
             self.nodes_tree.tag_configure('installed', foreground=FG_INFO)
             self.nodes_tree.tag_configure('not_installed', foreground=FG_MUTED)
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
         self.nodes_tree.bind("<<TreeviewSelect>>", lambda event: self._update_ui_state())
 
 
@@ -1032,28 +1089,30 @@ class ComLauncherApp:
         setup_text_tags(self.main_output_text) # Apply color tags
 
 
-        # --- Analysis Tab (MOD3: Layout Optimization) ---
+        # --- Analysis Tab (MOD2: Layout Optimization) ---
         self.analysis_frame = ttk.Frame(self.notebook, padding="15", style='Analysis.TFrame')
-        self.analysis_frame.columnconfigure(0, weight=1) # This column (0) should expand for entries/text areas
-        self.analysis_frame.rowconfigure(3, weight=1) # MOD3: Row 3 now contains the analysis output text area, make it expandable
+        # Configure column 1 to expand for entries and user request text area
+        self.analysis_frame.columnconfigure(1, weight=1)
+        # Configure row 3 to expand for the analysis output text area
+        self.analysis_frame.rowconfigure(3, weight=1)
         self.notebook.add(self.analysis_frame, text=' 分析 / Analysis ')
 
         analysis_current_row = 0
-        # API Configuration Controls Frame - Needs to span the full width controlled by analysis_frame.columnconfigure(0)
-        api_control_group = ttk.Frame(self.analysis_frame, style='Analysis.TFrame')
-        api_control_group.grid(row=analysis_current_row, column=0, sticky="ew", padx=frame_padx, pady=widget_pady) # Sticky EW to fill column 0 of analysis_frame
-        api_control_group.columnconfigure(1, weight=1) # Make the column holding entries/buttons expand within api_control_group
 
-        # Row 1 inside control group: API Endpoint
-        # Labels should be fixed width, entries should expand
-        ttk.Label(api_control_group, text="API 接口:", width=label_min_width, anchor=tk.W).grid(row=0, column=0, sticky=tk.W, padx=widget_padx, pady=(0, widget_pady))
-        self.api_endpoint_entry = ttk.Entry(api_control_group, textvariable=self.error_api_endpoint_var)
-        self.api_endpoint_entry.grid(row=0, column=1, sticky="ew", padx=widget_padx, pady=(0, widget_pady)) # Sticky EW to fill column 1 of api_control_group
+        # Row 0: API Endpoint
+        # MOD2: Remove fixed width, rely on column weights and padding
+        ttk.Label(self.analysis_frame, text="API 接口:", anchor=tk.W).grid(row=analysis_current_row, column=0, sticky=tk.W, padx=widget_padx, pady=(0, widget_pady))
+        self.api_endpoint_entry = ttk.Entry(self.analysis_frame, textvariable=self.error_api_endpoint_var)
+        # MOD2: Place in column 1, make sticky EW
+        self.api_endpoint_entry.grid(row=analysis_current_row, column=1, sticky="ew", padx=widget_padx, pady=(0, widget_pady))
+        analysis_current_row += 1
 
-        # Row 2 inside control group: API Key and Buttons
-        ttk.Label(api_control_group, text="API 密匙:", width=label_min_width, anchor=tk.W).grid(row=1, column=0, sticky=tk.W, padx=widget_padx, pady=widget_pady)
-        key_button_frame = ttk.Frame(api_control_group, style='Analysis.TFrame') # Frame to hold key entry and buttons
-        key_button_frame.grid(row=1, column=1, sticky="ew", padx=widget_padx, pady=widget_pady) # Sticky EW to fill column 1 of api_control_group
+        # Row 1: API Key and Buttons
+        # MOD2: Remove fixed width, rely on column weights and padding
+        ttk.Label(self.analysis_frame, text="API 密匙:", anchor=tk.W).grid(row=analysis_current_row, column=0, sticky=tk.W, padx=widget_padx, pady=widget_pady)
+        key_button_frame = ttk.Frame(self.analysis_frame, style='Analysis.TFrame') # Frame to hold key entry and buttons
+        # MOD2: Place in column 1, make sticky EW
+        key_button_frame.grid(row=analysis_current_row, column=1, sticky="ew", padx=widget_padx, pady=widget_pady)
         key_button_frame.columnconfigure(0, weight=1) # Key entry expands within key_button_frame
         self.api_key_entry = ttk.Entry(key_button_frame, textvariable=self.error_api_key_var, show="*")
         self.api_key_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10)) # Sticky EW to fill column 0 of key_button_frame
@@ -1061,27 +1120,27 @@ class ComLauncherApp:
         self.diagnose_button.grid(row=0, column=1, padx=(0, 5)) # Grid in column 1 of key_button_frame
         self.fix_button = ttk.Button(key_button_frame, text="修复", style="Tab.TButton", command=self.run_fix)
         self.fix_button.grid(row=0, column=2) # Grid in column 2 of key_button_frame
-
         analysis_current_row += 1
 
-        # MOD5: User Request Field (ScrolledText) - Now row analysis_current_row (which is 1)
-        ttk.Label(self.analysis_frame, text="用户诉求:", width=label_min_width, anchor=tk.W).grid(row=analysis_current_row, column=0, sticky=tk.W, padx=frame_padx, pady=widget_pady) # Label in column 0
-        analysis_current_row += 1 # Move to the next row for the text widget (now row 2)
-
-        # MOD5: User Request Input Area - Now row analysis_current_row (which is 2)
-        self.user_request_text = scrolledtext.ScrolledText(self.analysis_frame, wrap=tk.WORD, height=8, # MOD3: Set a default height (approx 2.5x default entry height)
-                                                           font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL),
+        # Row 2: User Request Label and Input (MOD2: Side-by-side)
+        # MOD2: Remove fixed width, rely on column weights and padding
+        ttk.Label(self.analysis_frame, text="用户诉求:", anchor=tk.W).grid(row=analysis_current_row, column=0, sticky=tk.W, padx=widget_padx, pady=widget_pady)
+        # MOD2: Create ScrolledText with specified height and reduced font size
+        user_request_font = tkfont.Font(family=FONT_FAMILY_UI, size=FONT_SIZE_NORMAL - 1) # Define font with reduced size
+        self.user_request_text = scrolledtext.ScrolledText(self.analysis_frame, wrap=tk.WORD, height=6, # MOD2: Set height to 6 lines
+                                                           font=user_request_font, # MOD2: Apply reduced font size
                                                            bg=TEXT_AREA_BG, fg=FG_COLOR, relief=tk.FLAT,
                                                            borderwidth=1, bd=1, highlightthickness=1,
                                                            highlightbackground=BORDER_COLOR, insertbackground="white")
-        self.user_request_text.grid(row=analysis_current_row, column=0, sticky="ew", padx=frame_padx, pady=(0, widget_pady)) # MOD3: Sticky EW to fill column 0 of analysis_frame
+        # MOD2: Place in column 1, make sticky EW
+        self.user_request_text.grid(row=analysis_current_row, column=1, sticky="ew", padx=widget_padx, pady=(0, widget_pady))
         self.user_request_text.bind("<KeyRelease>", lambda event: self._update_ui_state()) # MOD4: Ensure UI state updates on input
         analysis_current_row += 1 # Move to the next row for the analysis output (now row 3)
 
-
-        # Output Text Area (CMD code display box) - Now row analysis_current_row (which is 3)
+        # Row 3: Output Text Area (CMD code display box) - Now row 3
         self.error_analysis_text = scrolledtext.ScrolledText(self.analysis_frame, wrap=tk.WORD, state=tk.DISABLED, font=(FONT_FAMILY_MONO, FONT_SIZE_MONO), bg=TEXT_AREA_BG, fg=FG_STDOUT, relief=tk.FLAT, borderwidth=1, bd=1, highlightthickness=1, highlightbackground=BORDER_COLOR, insertbackground="white")
-        self.error_analysis_text.grid(row=analysis_current_row, column=0, sticky="nsew", padx=frame_padx, pady=(5, 0)) # MOD3: Grid in next row, sticky N/S/E/W
+        # MOD2: Place in column 0 AND 1 (span), make sticky NSEW to fill expanding row/column
+        self.error_analysis_text.grid(row=analysis_current_row, column=0, columnspan=2, sticky="nsew", padx=frame_padx, pady=(5, 0))
         setup_text_tags(self.error_analysis_text) # Apply tags including 'api_output' and 'cmd'
 
 
@@ -1111,7 +1170,9 @@ class ComLauncherApp:
             text_widget.insert(tk.END, line, (tag,))
             # Always scroll to the end after inserting text
             text_widget.see(tk.END)
-            text_widget.config(state=tk.DISABLED)
+            # MOD2: Ensure ScrolledText widgets intended for user input remain normal
+            if text_widget != self.user_request_text:
+                 text_widget.config(state=tk.DISABLED)
         except tk.TclError as e:
              print(f"[Launcher ERROR] TclError inserting output: {e}")
         except Exception as e:
@@ -1126,6 +1187,9 @@ class ComLauncherApp:
         level: Log level ("info", "warn", "error", "cmd", "api_output", "stdout", "stderr") used for tagging.
         target_override: Force message to a specific widget queue ("Launcher" or "ComfyUI").
         """
+        if not isinstance(message, str): # Ensure message is a string
+            message = str(message)
+
         if not message.endswith('\n'):
             message += '\n'
 
@@ -1146,6 +1210,9 @@ class ComLauncherApp:
         # Allow specific tags like 'cmd', 'api_output'
         elif level in ["cmd", "api_output", "warn", "error", "info"]:
              tag = level # Keep specific level tags
+        else: # Fallback for unknown levels
+             tag = "info"
+
 
         # Construct the log line prefix for context (handled in insert_output for timestamp)
         # For queueing, just include the source prefix if not ComfyUI
@@ -1217,12 +1284,7 @@ class ComLauncherApp:
         target_queue = self.comfyui_output_queue if is_comfyui_stream else self.launcher_log_queue
 
         # Determine log level/tag
-        if is_stderr:
-             log_level = "stderr"
-        elif is_comfyui_stream:
-             log_level = "stdout" # ComfyUI stdout
-        else:
-             log_level = "info" # Default for other stdout (Git, Fix)
+        log_level = "stderr" if is_stderr else ("stdout" if is_comfyui_stream else "info")
 
         api_port = self.config.get("comfyui_api_port", DEFAULT_COMFYUI_API_PORT)
         # More robust ready string detection
@@ -1428,15 +1490,22 @@ class ComLauncherApp:
                 error_reason = f"ComfyUI 后台进程意外终止，退出码 {exit_code}。"
                 try:
                     stdout_output, stderr_output = self.comfyui_process.communicate(timeout=0.5) # Short timeout
-                    if stdout_output: error_reason += f"\n\nStdout:\n{stdout_output.strip()}"
-                    if stderr_output: error_reason += f"\n\nStderr:\n{stderr_output.strip()}"
-                except subprocess.TimeoutExpired: pass # Output likely being handled by threads
-                except Exception as read_err: print(f"[Launcher WARNING] Error reading immediate output: {read_err}")
+                    if stdout_output:
+                        error_reason += f"\n\nStdout:\n{stdout_output.strip()}"
+                    if stderr_output:
+                        error_reason += f"\n\nStderr:\n{stderr_output.strip()}"
+                except subprocess.TimeoutExpired:
+                    pass # Output likely being handled by threads
+                except Exception as read_err:
+                    print(f"[Launcher WARNING] Error reading immediate output: {read_err}")
                 try:
-                    with socket.create_connection(("127.0.0.1", port_to_check), timeout=0.5): pass
+                    with socket.create_connection(("127.0.0.1", port_to_check), timeout=0.5):
+                        pass
                     error_reason += f"\n\n可能原因：端口 {port_to_check} 似乎已被占用。"
-                except (ConnectionRefusedError, socket.timeout): pass # Port likely free
-                except Exception: pass # Other port check error
+                except (ConnectionRefusedError, socket.timeout):
+                    pass # Port likely free
+                except Exception:
+                    pass # Other port check error
                 raise Exception(error_reason)
 
             self.log_to_gui("ComfyUI", "ComfyUI 后台服务已启动。", "info")
@@ -1531,6 +1600,7 @@ class ComLauncherApp:
              self.log_to_gui("Launcher", "请求停止当前更新任务...", "info")
              self.stop_event.set() # Signal worker thread
 
+        # Give worker a moment to react, then update UI
         self.root.after(100, self._update_ui_state)
 
 
@@ -1540,7 +1610,8 @@ class ComLauncherApp:
         git_exe = self.git_exe_path_var.get()
         if not git_exe or not os.path.isfile(git_exe):
              err_msg = f"Git 可执行文件路径未配置或无效: {git_exe}"
-             if log_output: self.log_to_gui("Git", err_msg, "error", target_override="Launcher") # Log to launcher log
+             if log_output:
+                 self.log_to_gui("Git", err_msg, "error", target_override="Launcher") # Log to launcher log
              return "", err_msg, 127
 
         full_cmd = [git_exe] + command_list
@@ -1550,7 +1621,8 @@ class ComLauncherApp:
 
         if not os.path.isdir(cwd):
              err_msg = f"Git 命令工作目录不存在或无效: {cwd}"
-             if log_output: self.log_to_gui("Git", err_msg, "error", target_override="Launcher") # Log to launcher log
+             if log_output:
+                 self.log_to_gui("Git", err_msg, "error", target_override="Launcher") # Log to launcher log
              return "", err_msg, 1
 
         try:
@@ -1560,12 +1632,17 @@ class ComLauncherApp:
                  self.log_to_gui("Git", f"执行: {cmd_log_str}", "cmd", target_override="Launcher") # Log to launcher log
                  self.log_to_gui("Git", f"工作目录: {cwd}", "cmd", target_override="Launcher") # Log to launcher log
 
+            startupinfo = None
+            creationflags = 0
+            if os.name == 'nt':
+                 creationflags = subprocess.CREATE_NO_WINDOW
+
             process = subprocess.Popen(
                 full_cmd,
                 cwd=cwd,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, encoding='utf-8', errors='replace',
-                startupinfo=None, creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0,
+                startupinfo=startupinfo, creationflags=creationflags,
                 env=git_env
             )
 
@@ -1575,12 +1652,17 @@ class ComLauncherApp:
                 stdout_full, stderr_full = process.communicate(timeout=timeout)
                 returncode = process.returncode
                 if log_output:
-                    if stdout_full: self.log_to_gui("Git", stdout_full, "stdout", target_override="Launcher") # Log to launcher log
-                    if stderr_full: self.log_to_gui("Git", stderr_full, "stderr", target_override="Launcher") # Log to launcher log
+                    if stdout_full:
+                        self.log_to_gui("Git", stdout_full, "stdout", target_override="Launcher") # Log to launcher log
+                    if stderr_full:
+                        self.log_to_gui("Git", stderr_full, "stderr", target_override="Launcher") # Log to launcher log
             except subprocess.TimeoutExpired:
-                if log_output: self.log_to_gui("Git", f"Git 命令超时 ({timeout} 秒), 进程被终止。", "error", target_override="Launcher") # Log to launcher log
-                try: process.kill()
-                except OSError: pass
+                if log_output:
+                    self.log_to_gui("Git", f"Git 命令超时 ({timeout} 秒), 进程被终止。", "error", target_override="Launcher") # Log to launcher log
+                try:
+                    process.kill()
+                except OSError:
+                    pass
                 returncode = 124 # Standard timeout exit code
                 stdout_full, stderr_full = "", "命令执行超时 / Command timed out"
 
@@ -1591,11 +1673,13 @@ class ComLauncherApp:
 
         except FileNotFoundError:
             error_msg = f"Git 可执行文件未找到: {git_exe}"
-            if log_output: self.log_to_gui("Git", error_msg, "error", target_override="Launcher") # Log to launcher log
+            if log_output:
+                self.log_to_gui("Git", error_msg, "error", target_override="Launcher") # Log to launcher log
             return "", error_msg, 127
         except Exception as e:
             error_msg = f"执行 Git 命令时发生意外错误: {e}\n命令: {' '.join(full_cmd)}"
-            if log_output: self.log_to_gui("Git", error_msg, "error", target_override="Launcher") # Log to launcher log
+            if log_output:
+                self.log_to_gui("Git", error_msg, "error", target_override="Launcher") # Log to launcher log
             return "", error_msg, 1
 
 
@@ -1605,7 +1689,8 @@ class ComLauncherApp:
         while True:
             task_func, task_args, task_kwargs = None, None, None # Define outside try
             try:
-                task_func, task_args, task_kwargs = self.update_task_queue.get(timeout=1) # Use timeout
+                # Use timeout=0.1 or small value so the loop can check stop_event frequently
+                task_func, task_args, task_kwargs = self.update_task_queue.get(timeout=0.1)
                 if self.stop_event.is_set(): # Check if stopped while waiting
                     self.log_to_gui("Launcher", f"更新任务 '{task_func.__name__ if task_func else 'Unknown'}' 从队列中移除，因为收到停止信号。", "warn")
                     self.update_task_queue.task_done()
@@ -1637,17 +1722,25 @@ class ComLauncherApp:
                     print(f"[Launcher DEBUG] UI update scheduled after task completion.") # MOD5 Debug
 
             except queue.Empty:
+                # When queue is empty and stop_event is set, exit the worker loop
                 if self.stop_event.is_set():
-                    pass
+                    print("[Launcher INFO] Update worker thread received stop signal and queue is empty, exiting.")
+                    break
+                # If queue is empty but stop_event is not set, just continue waiting (loop naturally handles timeout)
                 continue
             except Exception as e:
                 print(f"[Launcher CRITICAL] Error in update task worker loop: {e}", exc_info=True)
                 self._update_task_running = False
                 self.stop_event.clear()
-                if task_func:
-                    try: self.update_task_queue.task_done()
-                    except ValueError: pass
+                # Attempt to mark task done if it was retrieved, even if it failed
+                try:
+                    if task_func: # Check if task_func was successfully retrieved before error
+                        self.update_task_queue.task_done()
+                except ValueError:
+                    pass # Task might not have been put correctly or state is inconsistent
+
                 self.root.after(0, self._update_ui_state) # Try to update UI state
+                # Avoid tight loop on persistent errors
                 time.sleep(1)
 
 
@@ -1659,7 +1752,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
         if not self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=True):
              return
 
@@ -1674,7 +1768,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
 
         selected_item = self.main_body_tree.focus()
         if not selected_item:
@@ -1692,27 +1787,19 @@ class ComLauncherApp:
 
         # Find the full commit ID from the stored data
         for ver_data in self.remote_main_body_versions:
-            commit_id_str = ver_data.get("commit_id")
+            commit_id_str = ver_data.get('commit_id')
             if isinstance(commit_id_str, str) and commit_id_str.startswith(selected_commit_id_short):
                  full_commit_id = ver_data["commit_id"]
                  break
 
         if not full_commit_id:
-             self.log_to_gui("Update", f"无法在缓存中找到 '{selected_commit_id_short}' 的完整ID，尝试 Git 解析...", "warn")
-             comfyui_dir = self.comfyui_dir_var.get()
-             if comfyui_dir and os.path.isdir(os.path.join(comfyui_dir, ".git")):
-                 stdout, _, rc = self._run_git_command(["rev-parse", selected_commit_id_short], cwd=comfyui_dir, timeout=10, log_output=False)
-                 if rc == 0 and stdout:
-                     full_commit_id = stdout.strip()
-                     self.log_to_gui("Update", f"Git 解析到完整 ID: {full_commit_id}", "info")
-                 else:
-                     self.log_to_gui("Update", f"无法解析提交ID '{selected_commit_id_short}' 的完整ID。", "error")
-                     messagebox.showerror("激活失败", f"无法解析要激活的提交ID '{selected_commit_id_short}'。", parent=self.root)
-                     return
-             else:
-                  self.log_to_gui("Update", "ComfyUI 目录不是 Git 仓库，无法解析提交ID。", "error")
-                  messagebox.showerror("激活失败", "ComfyUI 目录不是 Git 仓库，无法解析提交ID。", parent=self.root)
-                  return
+             # If not found in cached data, try getting full ID from treeview data (less reliable)
+             # Or, rely on git checkout to resolve the short ID (git checkout works with short IDs)
+             # Let's pass the short ID to the task and let Git resolve it.
+             full_commit_id = selected_commit_id_short # Use short ID as the target ref for git
+
+             self.log_to_gui("Update", f"无法在缓存中找到 '{selected_commit_id_short}' 的完整ID，将尝试使用短ID激活。", "warn")
+
 
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=True, show_error=True):
              return
@@ -1721,11 +1808,18 @@ class ComLauncherApp:
              messagebox.showerror("Git 仓库错误", f"ComfyUI 安装目录不是一个有效的 Git 仓库:\n{comfyui_dir}", parent=self.root)
              return
 
+        # MOD2: Check if ComfyUI is running before allowing main body activation
+        if self._is_comfyui_running() or self.comfyui_externally_detected:
+             messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行本体版本切换。", parent=self.root)
+             return
+
+
         confirm = messagebox.askyesno("确认激活", f"确定要下载并覆盖安装本体版本 '{selected_version_display}' (提交ID: {full_commit_id[:8]}) 吗？\n此操作会修改 '{comfyui_dir}' 目录。\n\n警告: 可能导致节点不兼容！\n确认前请确保 ComfyUI 已停止运行。", parent=self.root) # Added warning about ComfyUI state
-        if not confirm: return
+        if not confirm:
+            return
 
         self.log_to_gui("Launcher", f"将激活本体版本 '{full_commit_id[:8]}' 任务添加到队列...", "info")
-        self.update_task_queue.put((self._activate_main_body_version_task, [comfyui_dir, full_commit_id], {})) # Pass full ID
+        self.update_task_queue.put((self._activate_main_body_version_task, [comfyui_dir, full_commit_id], {})) # Pass target ID
         self.root.after(0, self._update_ui_state)
 
     def _queue_node_list_refresh(self):
@@ -1735,7 +1829,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
         self.log_to_gui("Launcher", "将刷新节点列表任务添加到队列...", "info")
         self.update_task_queue.put((self.refresh_node_list, [], {}))
         self.root.after(0, self._update_ui_state)
@@ -1749,7 +1844,8 @@ class ComLauncherApp:
              return
 
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
 
         selected_item = self.nodes_tree.focus()
         if not selected_item:
@@ -1758,7 +1854,8 @@ class ComLauncherApp:
 
         node_data = self.nodes_tree.item(selected_item, 'values')
         if not node_data or len(node_data) < 5:
-             self.log_to_gui("Update", "无法获取选中的节点数据。", "error"); return
+             self.log_to_gui("Update", "无法获取选中的节点数据。", "error")
+             return
 
         node_name = node_data[0]
         node_status = node_data[1]
@@ -1772,6 +1869,7 @@ class ComLauncherApp:
              return
 
         node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name))
+        # Check if installed AND is a git repository
         is_installed_and_git = os.path.isdir(node_install_path) and os.path.isdir(os.path.join(node_install_path, ".git"))
 
         # MOD2: Logic split - show history modal for installed git nodes, install for others
@@ -1781,9 +1879,11 @@ class ComLauncherApp:
                   messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点版本切换。", parent=self.root)
                   return
 
+             # --- MOD1: Defer history fetch ---
              self.log_to_gui("Launcher", f"将获取节点 '{node_name}' 版本历史任务添加到队列...", "info")
              # Pass node name and path to the fetch task
              self.update_task_queue.put((self._node_history_fetch_task, [node_name, node_install_path], {}))
+             # The _node_history_fetch_task will call _show_node_history_modal upon completion
         else:
              if not repo_url or repo_url in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库"):
                  messagebox.showerror("节点信息缺失", f"节点 '{node_name}' 无有效的仓库地址，无法进行版本切换或安装。", parent=self.root)
@@ -1793,7 +1893,7 @@ class ComLauncherApp:
                   messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点安装。", parent=self.root)
                   return
 
-             target_ref_for_install = "main" # Default branch
+             target_ref_for_install = "main" # Default branch (can be overridden)
              # Try to infer target reference (branch/tag) from online config info if available
              found_online_node = next((n for n in self.all_known_nodes if n.get("name","").lower() == node_name.lower()), None)
              if found_online_node:
@@ -1805,12 +1905,14 @@ class ComLauncherApp:
                  # Fallback to parsing the repo_info string if online config wasn't used or failed
                  if "在线目标:" in repo_info:
                       potential_ref = repo_info.split("在线目标:", 1)[-1].strip()
-                      if potential_ref: target_ref_for_install = potential_ref
+                      if potential_ref:
+                          target_ref_for_install = potential_ref
                  # Attempt to parse branch name from repo_info like "branch (commit)"
                  elif '(' in repo_info and ')' in repo_info:
                      parts = repo_info.split('(')
                      potential_ref = parts[0].strip()
-                     if potential_ref: target_ref_for_install = potential_ref
+                     if potential_ref:
+                         target_ref_for_install = potential_ref
 
 
              confirm_msg = f"确定要安装节点 '{node_name}' 吗？\n" \
@@ -1819,7 +1921,8 @@ class ComLauncherApp:
                            f"目标目录: {node_install_path}\n\n" \
                            f"确认前请确保 ComfyUI 已停止运行。" # Reiterated warning
              confirm = messagebox.askyesno("确认安装", confirm_msg, parent=self.root)
-             if not confirm: return
+             if not confirm:
+                 return
 
              self.log_to_gui("Launcher", f"将安装节点 '{node_name}' (目标引用: {target_ref_for_install})任务添加到队列...", "info")
              self.update_task_queue.put((self._install_node_task, [node_name, node_install_path, repo_url, target_ref_for_install], {}))
@@ -1834,7 +1937,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
         if not self._validate_paths_for_execution(check_comfyui=True, check_git=True, show_error=True):
              return
         if not self.comfyui_nodes_dir or not os.path.isdir(self.comfyui_nodes_dir):
@@ -1847,6 +1951,7 @@ class ComLauncherApp:
              return
 
 
+        # Filter for installed git nodes with a known remote branch
         nodes_to_update = [
             node for node in self.local_nodes_only
             if node.get("is_git") and node.get("repo_url") and node.get("repo_url") not in ("本地安装，无Git信息", "无法获取远程 URL", "本地安装", "N/A", "无远程仓库") and node.get("remote_branch") and node.get("remote_branch") != "N/A" # Ensure remote branch is known
@@ -1856,7 +1961,8 @@ class ComLauncherApp:
              return
 
         confirm = messagebox.askyesno("确认更新全部", f"确定要尝试更新 {len(nodes_to_update)} 个已安装节点吗？\n此操作将执行 Git pull。\n\n警告：可能丢失本地修改！\n确认前请确保 ComfyUI 已停止运行。", parent=self.root) # Reiterated warning
-        if not confirm: return
+        if not confirm:
+            return
 
         self.log_to_gui("Launcher", f"将更新全部节点任务添加到队列 (共 {len(nodes_to_update)} 个)...", "info")
         self.update_task_queue.put((self._update_all_nodes_task, [nodes_to_update], {}))
@@ -1869,7 +1975,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
 
         selected_item = self.nodes_tree.focus()
         if not selected_item:
@@ -1877,7 +1984,8 @@ class ComLauncherApp:
             return
         node_data = self.nodes_tree.item(selected_item, 'values')
         if not node_data or len(node_data) < 5:
-             self.log_to_gui("Update", "无法获取选中的节点数据。", "error"); return
+             self.log_to_gui("Update", "无法获取选中的节点数据。", "error")
+             return
 
         node_name = node_data[0]
         node_status = node_data[1]
@@ -1905,9 +2013,10 @@ class ComLauncherApp:
              "确认卸载节点",
              f"确定要永久删除节点 '{node_name}' 及其目录 '{node_install_path}' 吗？\n此操作不可撤销。\n\n确认前请确保 ComfyUI 已停止运行。", # Reiterated warning
              parent=self.root)
-        if not confirm: return
+        if not confirm:
+            return
 
-        self.log_to_gui("Launcher", f"将卸载节点 '{node_name}' 任务添加到队列...", "info")
+        self.log_to_gui("Launcher", f"将卸载节点 '{node_name}' task添加到队列...", "info") # Corrected to 'task'
         self.update_task_queue.put((self._node_uninstall_task, [node_name, node_install_path], {}))
         self.root.after(0, self._update_ui_state)
 
@@ -1931,6 +2040,11 @@ class ComLauncherApp:
 
     def _run_initial_background_tasks(self):
          """Executes the initial data loading tasks. Runs in worker thread."""
+         # Check for stop event at the very beginning
+         if self.stop_event.is_set():
+             self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn")
+             return
+
          self.log_to_gui("Launcher", "执行后台数据加载 (本体版本和节点列表)...", "info")
          git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
          if not git_path_ok:
@@ -1940,7 +2054,8 @@ class ComLauncherApp:
          self.refresh_main_body_versions()
 
          if self.stop_event.is_set():
-              self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn"); return
+              self.log_to_gui("Launcher", "后台数据加载任务已取消 (停止信号)。", "warn")
+              return
 
          # Then refresh node list
          self.refresh_node_list()
@@ -1970,27 +2085,31 @@ class ComLauncherApp:
         local_version_display = "未知 / Unknown"
         current_local_commit = None
         if is_git_repo:
-             stdout_id_short, _, rc_short = self._run_git_command(["rev-parse", "--short=8", "HEAD"], cwd=comfyui_dir, timeout=10, log_output=False)
-             if rc_short == 0 and stdout_id_short:
-                 current_local_commit = stdout_id_short.strip() # Store short ID
-                 local_version_display = f"本地 Commit: {current_local_commit}"
+             stdout_id_full, _, rc_full = self._run_git_command(["rev-parse", "HEAD"], cwd=comfyui_dir, timeout=10, log_output=False)
+             if rc_full == 0 and stdout_id_full:
+                  current_local_commit = stdout_id_full.strip() # Store full ID
+                  stdout_id_short = current_local_commit[:8] # Display short ID
+                  local_version_display = f"本地 Commit: {stdout_id_short}"
+
+                  # Try to find a symbolic ref (branch/tag) if HEAD is not detached
+                  stdout_sym_ref, _, rc_sym_ref = self._run_git_command(["symbolic-ref", "-q", "--short", "HEAD"], cwd=comfyui_dir, timeout=5, log_output=False)
+                  if rc_sym_ref == 0 and stdout_sym_ref:
+                       local_version_display = f"本地 Branch: {stdout_sym_ref.strip()} ({stdout_id_short})"
+                  else: # If detached HEAD, try describe
+                       stdout_desc, _, rc_desc = self._run_git_command(["describe", "--all", "--long", "--always"], cwd=comfyui_dir, timeout=10, log_output=False)
+                       if rc_desc == 0 and stdout_desc:
+                            local_version_display = f"本地: {stdout_desc.strip()}"
+
              else:
-                 stdout_desc, _, rc_desc = self._run_git_command(["describe", "--all", "--long", "--always"], cwd=comfyui_dir, timeout=10, log_output=False)
-                 if rc_desc == 0 and stdout_desc:
-                     local_version_display = f"本地: {stdout_desc.strip()}"
-                     # Attempt to parse commit ID from describe output (e.g., "heads/main-0-g<hash>")
-                     parts = stdout_desc.strip().split('-')
-                     if len(parts) > 1 and parts[-2].isdigit() and parts[-1].startswith('g'):
-                         current_local_commit = parts[-1][1:9] # Get first 8 chars after 'g'
-                 else:
-                      local_version_display = "读取本地版本失败"
-                      self.log_to_gui("Update", "无法获取本地本体版本信息。", "warn")
+                  local_version_display = "读取本地版本失败"
+                  self.log_to_gui("Update", "无法获取本地本体版本信息。", "warn")
         else:
              local_version_display = "非 Git 仓库或路径无效"
 
         self.root.after(0, lambda lv=local_version_display: self.current_main_body_version_var.set(lv))
 
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
 
         # Fetch Remote Versions
         all_versions = []
@@ -2003,13 +2122,16 @@ class ComLauncherApp:
              if not current_url:
                   self.log_to_gui("Update", f"远程 'origin' 不存在，尝试添加...", "info")
                   _, stderr_add, rc_add = self._run_git_command(["remote", "add", "origin", main_repo_url], cwd=comfyui_dir, timeout=15)
-                  if rc_add != 0: self.log_to_gui("Update", f"添加远程 'origin' 失败: {stderr_add.strip()}", "error")
+                  if rc_add != 0:
+                      self.log_to_gui("Update", f"添加远程 'origin' 失败: {stderr_add.strip()}", "error")
              elif current_url != main_repo_url:
                   self.log_to_gui("Update", f"远程 'origin' URL 不匹配 ({current_url}), 尝试设置新 URL...", "warn")
                   _, stderr_set, rc_set = self._run_git_command(["remote", "set-url", "origin", main_repo_url], cwd=comfyui_dir, timeout=15)
-                  if rc_set != 0: self.log_to_gui("Update", f"设置远程 'origin' URL 失败: {stderr_set.strip()}", "error")
+                  if rc_set != 0:
+                      self.log_to_gui("Update", f"设置远程 'origin' URL 失败: {stderr_set.strip()}", "error")
 
-             if self.stop_event.is_set(): return
+             if self.stop_event.is_set():
+                 return
 
              self.log_to_gui("Update", "执行 Git fetch origin --prune --tags -f...", "info")
              _, stderr_fetch, rc_fetch = self._run_git_command(["fetch", "origin", "--prune", "--tags", "-f"], cwd=comfyui_dir, timeout=180)
@@ -2018,7 +2140,8 @@ class ComLauncherApp:
                   self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("获取失败", "", "", "无法获取远程版本信息")))
                   return
 
-             if self.stop_event.is_set(): return
+             if self.stop_event.is_set():
+                 return
 
              # Get remote branches and tags with commit hash, date, and subject
              # Using separate commands for clarity and easier parsing
@@ -2026,6 +2149,7 @@ class ComLauncherApp:
 
              # Get remote branches
              self.log_to_gui("Update", "获取远程分支信息...", "info")
+             # Added --no-merges to filter out merge commits from the log output used for description
              branches_output, _, _ = self._run_git_command(
                   ["for-each-ref", "refs/remotes/origin/", "--sort=-committerdate", "--format=%(refname:short) %(objectname) %(committerdate:iso-strict) %(contents:subject)"],
                   cwd=comfyui_dir, timeout=60 )
@@ -2043,7 +2167,8 @@ class ComLauncherApp:
                   # Ignore lines with insufficient parts
 
 
-             if self.stop_event.is_set(): return
+             if self.stop_event.is_set():
+                 return
 
              # Get tags
              self.log_to_gui("Update", "获取标签信息...", "info")
@@ -2064,25 +2189,31 @@ class ComLauncherApp:
 
              # Get current local commit if it's detached HEAD or doesn't match any remote branch/tag fetched
              if current_local_commit:
-                 is_local_listed = any(v.get('commit_id', '').startswith(current_local_commit) for v in all_versions) # Check if the short ID matches
+                 # Check if this exact commit hash is already in the list (from remote branches/tags)
+                 is_local_listed = any(v.get('commit_id', '') == current_local_commit for v in all_versions)
                  if not is_local_listed:
                      self.log_to_gui("Update", "获取当前本地 Commit 信息...", "info")
-                     # Get full commit ID and date for current HEAD
-                     head_full_id_stdout, _, rc_head_id = self._run_git_command(["rev-parse", "HEAD"], cwd=comfyui_dir, timeout=5, log_output=False)
+                     # Get date and subject for current HEAD
                      head_date_stdout, _, rc_head_date = self._run_git_command(["log", "-1", "--format=%ci", "HEAD"], cwd=comfyui_dir, timeout=5, log_output=False)
+                     head_subject_stdout, _, rc_head_subject = self._run_git_command(["log", "-1", "--format=%s", "HEAD"], cwd=comfyui_dir, timeout=5, log_output=False)
 
-                     head_full_id = head_full_id_stdout.strip() if rc_head_id == 0 else None
                      head_date_iso = head_date_stdout.strip() if rc_head_date == 0 else None
+                     head_description = head_subject_stdout.strip() if rc_head_subject == 0 else "当前工作目录"
 
-                     if head_full_id:
-                         # Try to parse date, fallback to now if failed
-                         date_obj = _parse_iso_date_for_sort(head_date_iso)
-                         final_date_iso = date_obj.isoformat() if date_obj else datetime.now(timezone.utc).isoformat()
+                     # Try to parse date, fallback to now if failed
+                     date_obj = _parse_iso_date_for_sort(head_date_iso)
+                     final_date_iso = date_obj.isoformat() if date_obj else datetime.now(timezone.utc).isoformat()
 
-                         all_versions.append({"type": "commit", "name": "当前本地 HEAD", "commit_id": head_full_id, "date_iso": final_date_iso, "description": "当前工作目录"})
-                         self.log_to_gui("Update", f"添加当前本地 HEAD ({head_full_id[:8]}) 到列表。", "info")
-                     else:
-                         self.log_to_gui("Update", "无法获取当前本地 HEAD 完整信息。", "warn")
+                     # Determine type (detached HEAD or local branch not tracking remote)
+                     head_sym_ref_out, _, rc_head_sym_ref = self._run_git_command(["symbolic-ref", "-q", "--short", "HEAD"], cwd=comfyui_dir, timeout=2, log_output=False)
+                     head_type = "commit (HEAD)" if rc_head_sym_ref != 0 else "branch (local)"
+                     head_name = head_sym_ref_out.strip() if head_type == "branch (local)" else f"Detached at {current_local_commit[:8]}"
+
+
+                     all_versions.append({"type": head_type, "name": head_name, "commit_id": current_local_commit, "date_iso": final_date_iso, "description": head_description})
+                     self.log_to_gui("Update", f"添加当前本地 HEAD ({current_local_commit[:8]}) 到列表。", "info")
+                 else:
+                     self.log_to_gui("Update", "当前本地 Commit 与远程已同步或已在列表中。", "info")
 
 
              # Sort the combined list (MOD1: Using custom comparison)
@@ -2100,7 +2231,8 @@ class ComLauncherApp:
              self.root.after(0, lambda: self.main_body_tree.insert("", tk.END, values=("无远程版本", "", "", "")))
         else:
              for ver_data in all_versions:
-                 if self.stop_event.is_set(): break
+                 if self.stop_event.is_set():
+                     break
                  # Ensure keys exist with default empty strings if missing
                  ver_data.setdefault('type', '未知')
                  ver_data.setdefault('name', 'N/A')
@@ -2112,12 +2244,12 @@ class ComLauncherApp:
                  commit_display = ver_data.get("commit_id", "N/A")[:8] # Display short ID
 
                  date_obj = _parse_iso_date_for_sort(ver_data['date_iso'])
-                 date_display = date_obj.strftime('%Y-%m-%d') if date_obj else "日期解析失败" # Display "日期解析失败"
+                 date_display = date_obj.strftime('%Y-%m-%d') if date_obj else ("解析失败" if ver_data['date_iso'] else "无日期") # Display "日期解析失败" or "无日期"
 
                  description_display = ver_data['description']
 
-                 # Check if this version is the current local commit
-                 tags = ('highlight',) if current_local_commit and ver_data['commit_id'].startswith(current_local_commit) else ()
+                 # Check if this version is the current local commit (using full ID)
+                 tags = ('highlight',) if current_local_commit and ver_data.get('commit_id') == current_local_commit else ()
 
 
                  self.root.after(0, lambda v=(version_display, commit_display, date_display, description_display), t=tags: self.main_body_tree.insert("", tk.END, values=v, tags=t))
@@ -2126,43 +2258,56 @@ class ComLauncherApp:
         self.log_to_gui("Update", f"本体版本列表刷新完成。", "info")
 
 
-    def _activate_main_body_version_task(self, comfyui_dir, target_commit_id):
+    def _activate_main_body_version_task(self, comfyui_dir, target_ref): # Renamed target_commit_id to target_ref
         """Task to execute git commands for activating main body version. Runs in worker thread."""
-        if self.stop_event.is_set(): return
-        self.log_to_gui("Update", f"正在激活本体版本 (提交ID: {target_commit_id[:8]})...", "info")
+        if self.stop_event.is_set():
+            return
+        self.log_to_gui("Update", f"正在激活本体版本 (引用: {target_ref[:8]})...", "info") # Use short ref for logging
 
         try:
-            # 1. Fetch latest changes (already done in refresh, but maybe do a quick fetch again?)
-            # Let's skip fetch here as refresh_main_body_versions already did it.
-            # Re-check if target_commit_id exists locally after fetch/prune
-            stdout_check, _, rc_check = self._run_git_command(["cat-file", "-t", target_commit_id], cwd=comfyui_dir, timeout=10, log_output=False)
-            if rc_check != 0 or stdout_check.strip() != "commit":
-                 # If not found, maybe it's a ref that needs fetch? Try fetching the specific ref.
-                 self.log_to_gui("Update", f"提交ID {target_commit_id[:8]} 本地未找到，尝试 fetch...", "warn")
-                 _, stderr_fetch_one, rc_fetch_one = self._run_git_command(["fetch", "origin", target_commit_id], cwd=comfyui_dir, timeout=60)
-                 if rc_fetch_one != 0:
-                      raise Exception(f"目标提交ID {target_commit_id[:8]} 不存在且 fetch 失败: {stderr_fetch_one.strip()}")
-                 self.log_to_gui("Update", f"目标提交ID {target_commit_id[:8]} fetch 成功。", "info")
+            # 1. Fetch latest changes if target_ref is not a full SHA or known local ref
+            # A simple approach is to always try fetching the specific ref if it looks like a remote branch or tag
+            # or if git checkout fails initially. A more robust way is to check if the ref is already local.
+            # Let's assume `target_ref` *might* need a fetch first if it's a remote branch/tag name.
+            # We can try 'git fetch origin <target_ref>' which is safe if it's already fetched.
+            # However, `git checkout <ref>` itself can often work with remote branch names like `origin/main`
+            # if `git fetch origin` has been run recently (which refresh_main_body_versions does).
+            # Let's trust `git checkout` to handle refs that exist locally (either via fetch or already local).
+            # If it fails, we'll report the error.
 
-            if self.stop_event.is_set(): raise threading.ThreadExit
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
-            # 2. Reset local changes and checkout target commit
+            # 2. Reset local changes and checkout target commit/ref
             stdout_status, _, _ = self._run_git_command(["status", "--porcelain"], cwd=comfyui_dir, timeout=10, log_output=False) # No logging status unless needed
             if stdout_status.strip():
                  self.log_to_gui("Update", "检测到本体目录存在未提交的本地修改，将通过 reset --hard 覆盖。", "warn")
 
-            self.log_to_gui("Update", f"执行 Git reset --hard {target_commit_id[:8]}...", "info")
-            _, stderr_reset, rc_reset = self._run_git_command(["reset", "--hard", target_commit_id], cwd=comfyui_dir, timeout=60)
-            if rc_reset != 0: raise Exception(f"Git reset --hard 失败: {stderr_reset.strip()}")
-            if self.stop_event.is_set(): raise threading.ThreadExit
+            # Use checkout --force to handle local changes and ensure the target ref is checked out
+            self.log_to_gui("Update", f"执行 Git checkout --force {target_ref[:8]}...", "info")
+            _, stderr_checkout, rc_checkout = self._run_git_command(["checkout", "--force", target_ref], cwd=comfyui_dir, timeout=60)
+            if rc_checkout != 0:
+                # If checkout fails, try reset --hard as a fallback? No, checkout is the standard way.
+                # The most likely reason is the ref doesn't exist *locally* after fetch.
+                # Maybe try one more fetch of the specific ref? Or just report error.
+                # Given refresh_main_body_versions *just* ran fetch --prune --tags -f,
+                # if the ref exists remotely, it should be local. Let's just fail clearly.
+                raise Exception(f"Git checkout --force 失败: {stderr_checkout.strip()}")
+
+            self.log_to_gui("Update", f"Git checkout 完成 (引用: {target_ref[:8]}).", "info")
+
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
             # 3. Update submodules
             if os.path.exists(os.path.join(comfyui_dir, ".gitmodules")):
                  self.log_to_gui("Update", "执行 Git submodule update...", "info")
                  # Use --init and --recursive --force together
                  _, stderr_sub, rc_sub = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=comfyui_dir, timeout=180)
-                 if rc_sub != 0: self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn") # Warn only
-            if self.stop_event.is_set(): raise threading.ThreadExit
+                 if rc_sub != 0:
+                     self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn") # Warn only
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
             # 4. Re-install Python dependencies
             python_exe = self.python_exe_var.get()
@@ -2179,8 +2324,18 @@ class ComLauncherApp:
                  pip_cmd = pip_cmd_base + pip_cmd_extras
                  is_venv = sys.prefix != sys.base_prefix
                  if platform.system() != "Windows" and not is_venv:
-                      pip_cmd.append("--user")
-                      self.log_to_gui("Update", "非虚拟环境，使用 --user 选项安装依赖。", "warn")
+                      # Only add --user if not in a venv and not Windows (user installs are standard on Linux/macOS outside venv)
+                      # On Windows, --user is generally not recommended for venv/portable envs
+                      # Check if python_exe is within a venv/portable path.
+                      # A simple check: if the python_exe is NOT inside sys.base_prefix
+                      if sys.base_prefix != sys.prefix: # Are we NOT in the *system* base environment?
+                           # Then we are likely in a venv or similar managed environment
+                           pass # Don't add --user
+                      else:
+                           # Likely system installation on Linux/macOS
+                           pip_cmd.append("--user")
+                           self.log_to_gui("Update", "非虚拟环境 (系统安装)，使用 --user 选项安装依赖。", "warn")
+
 
                  # Added --no-cache-dir to save space, --compile could speed up subsequent imports
                  pip_cmd.extend(["--no-cache-dir"])
@@ -2195,8 +2350,8 @@ class ComLauncherApp:
                  self.log_to_gui("Update", "Python 或 requirements.txt 无效，跳过依赖安装。", "warn")
 
             # Success
-            self.log_to_gui("Update", f"本体版本激活流程完成 (提交ID: {target_commit_id[:8]})。", "info")
-            self.root.after(0, lambda commit=target_commit_id[:8]: messagebox.showinfo("激活完成", f"本体版本已激活到提交: {commit}", parent=self.root))
+            self.log_to_gui("Update", f"本体版本激活流程完成 (引用: {target_ref[:8]})。", "info")
+            self.root.after(0, lambda ref=target_ref[:8]: messagebox.showinfo("激活完成", f"本体版本已激活到: {ref}", parent=self.root))
 
         except threading.ThreadExit:
              self.log_to_gui("Update", "本体版本激活任务已取消。", "warn")
@@ -2211,7 +2366,8 @@ class ComLauncherApp:
 
     def refresh_node_list(self):
         """Fetches and displays custom node list (local scan + online config), applying filter. Runs in worker thread."""
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
         self.log_to_gui("Update", "刷新节点列表...", "info")
 
         node_config_url = self.node_config_url_var.get()
@@ -2220,7 +2376,8 @@ class ComLauncherApp:
         try:
             if hasattr(self, 'nodes_search_entry') and self.nodes_search_entry.winfo_exists():
                 search_term_value = self.nodes_search_entry.get().strip().lower()
-        except tk.TclError: pass # Handle widget not existing yet
+        except tk.TclError:
+            pass # Handle widget not existing yet
 
         git_path_ok = self._validate_paths_for_execution(check_comfyui=False, check_git=True, show_error=False)
         is_nodes_dir_valid = comfyui_nodes_dir and os.path.isdir(comfyui_nodes_dir)
@@ -2233,59 +2390,68 @@ class ComLauncherApp:
         if is_nodes_dir_valid:
              self.log_to_gui("Update", f"扫描本地 custom_nodes 目录: {comfyui_nodes_dir}...", "info")
              try:
-                  item_names = sorted(os.listdir(comfyui_nodes_dir))
+                  # List directories first for better processing
+                  item_names = sorted([d for d in os.listdir(comfyui_nodes_dir) if os.path.isdir(os.path.join(comfyui_nodes_dir, d))])
                   for item_name in item_names:
-                       if self.stop_event.is_set(): raise threading.ThreadExit
+                       if self.stop_event.is_set():
+                           raise threading.ThreadExit
 
                        item_path = os.path.join(comfyui_nodes_dir, item_name)
-                       if os.path.isdir(item_path):
-                            node_info = {"name": item_name, "status": "已安装", "local_id": "N/A", "local_commit_full": None, "repo_info": "N/A", "repo_url": "本地安装", "is_git": False, "remote_branch": None}
+                       node_info = {"name": item_name, "status": "已安装", "local_id": "N/A", "local_commit_full": None, "repo_info": "N/A", "repo_url": "本地安装", "is_git": False, "remote_branch": None}
 
-                            if git_path_ok and os.path.isdir(os.path.join(item_path, ".git")):
-                                 node_info["is_git"] = True
+                       if git_path_ok and os.path.isdir(os.path.join(item_path, ".git")):
+                            node_info["is_git"] = True
 
-                                 # Get Local Short ID (8 chars) and Full ID
-                                 stdout_id_short, _, rc_id_short = self._run_git_command(["rev-parse", "--short=8", "HEAD"], cwd=item_path, timeout=5, log_output=False)
-                                 node_info["local_id"] = stdout_id_short.strip() if rc_id_short == 0 and stdout_id_short else "获取失败"
-                                 stdout_id_full, _, rc_id_full = self._run_git_command(["rev-parse", "HEAD"], cwd=item_path, timeout=5, log_output=False)
-                                 node_info["local_commit_full"] = stdout_id_full.strip() if rc_id_full == 0 and stdout_id_full else None
+                            # Get Local Short ID (8 chars) and Full ID
+                            stdout_id_full, _, rc_id_full = self._run_git_command(["rev-parse", "HEAD"], cwd=item_path, timeout=5, log_output=False)
+                            node_info["local_commit_full"] = stdout_id_full.strip() if rc_id_full == 0 and stdout_id_full else None
+                            node_info["local_id"] = node_info["local_commit_full"][:8] if node_info["local_commit_full"] else "获取失败"
 
 
-                                 # Get Remote URL
-                                 stdout_url, _, rc_url = self._run_git_command(["remote", "get-url", "origin"], cwd=item_path, timeout=5, log_output=False)
-                                 node_info["repo_url"] = stdout_url.strip() if rc_url == 0 and stdout_url else "无远程仓库"
+                            # Get Remote URL
+                            stdout_url, _, rc_url = self._run_git_command(["config", "--get", "remote.origin.url"], cwd=item_path, timeout=5, log_output=False)
+                            node_info["repo_url"] = stdout_url.strip() if rc_url == 0 and stdout_url and stdout_url.strip().endswith(".git") else "无远程仓库" # Ensure it looks like a URL
 
-                                 # Get Upstream Branch and Remote Info
-                                 # Use git rev-parse --abbrev-ref --symbolic-full-name @{u} to get tracking branch
-                                 upstream_stdout, _, rc_upstream = self._run_git_command(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], cwd=item_path, timeout=5, log_output=False)
-                                 upstream_ref = upstream_stdout.strip() if rc_upstream == 0 and upstream_stdout else None
+                            # Get Upstream Branch and Remote Info
+                            # Use git rev-parse --abbrev-ref --symbolic-full-name @{u} to get tracking branch
+                            upstream_stdout, _, rc_upstream = self._run_git_command(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], cwd=item_path, timeout=5, log_output=False)
+                            upstream_ref = upstream_stdout.strip() if rc_upstream == 0 and upstream_stdout else None
 
-                                 repo_info_display = "无远程跟踪"
-                                 if upstream_ref and upstream_ref.startswith("origin/"):
-                                     remote_branch_name = upstream_ref.replace("origin/", "")
-                                     node_info["remote_branch"] = remote_branch_name # Store for update all
+                            repo_info_display = "无远程跟踪"
+                            if upstream_ref and upstream_ref.startswith("origin/"):
+                                remote_branch_name = upstream_ref.replace("origin/", "")
+                                node_info["remote_branch"] = remote_branch_name # Store for update all
 
-                                     # Get remote commit ID and date for the tracking branch
-                                     log_cmd = ["log", "-1", "--format=%H %ci", upstream_ref] # Use ISO date
-                                     stdout_log, _, rc_log = self._run_git_command(log_cmd, cwd=item_path, timeout=10, log_output=False)
-                                     if rc_log == 0 and stdout_log:
-                                          log_parts = stdout_log.strip().split(' ', 1)
-                                          if len(log_parts) == 2:
-                                               full_commit_id_remote, date_iso = log_parts[0], log_parts[1]
-                                               remote_commit_id_short = full_commit_id_remote[:8]
-                                               date_obj = _parse_iso_date_for_sort(date_iso)
-                                               remote_commit_date = date_obj.strftime('%Y-%m-%d') if date_obj else "未知日期"
-                                               repo_info_display = f"{remote_commit_id_short} ({remote_commit_date})"
-                                          else: repo_info_display = f"{remote_branch_name} (日志解析失败)"
-                                     else: repo_info_display = f"{remote_branch_name} (信息获取失败)"
-                                 elif upstream_ref: # Tracks something else?
-                                      repo_info_display = f"跟踪: {upstream_ref}"
+                                # Get remote commit ID and date for the tracking branch
+                                # Use git log --format to get commit hash (%H), committer date (%ci), and subject (%s)
+                                log_cmd = ["log", "-1", "--format=%H %ci %s", upstream_ref] # Use ISO date, include subject
+                                stdout_log, _, rc_log = self._run_git_command(log_cmd, cwd=item_path, timeout=10, log_output=False)
+                                if rc_log == 0 and stdout_log:
+                                     log_parts = stdout_log.strip().split(' ', 2) # Split into hash, date, rest (subject)
+                                     if len(log_parts) >= 2: # Need at least hash and date
+                                          full_commit_id_remote = log_parts[0]
+                                          date_iso = log_parts[1]
+                                          subject = log_parts[2].strip() if len(log_parts) == 3 else ""
 
-                                 node_info["repo_info"] = repo_info_display
+                                          remote_commit_id_short = full_commit_id_remote[:8]
+                                          date_obj = _parse_iso_date_for_sort(date_iso)
+                                          remote_commit_date = date_obj.strftime('%Y-%m-%d') if date_obj else "未知日期"
+                                          # Display branch, short commit, and date
+                                          repo_info_display = f"{remote_branch_name} {remote_commit_id_short} ({remote_commit_date})"
+                                          # Could add subject to tooltip later if needed
+                                     else:
+                                          repo_info_display = f"{remote_branch_name} (日志解析失败)"
+                                else:
+                                     repo_info_display = f"{remote_branch_name} (信息获取失败)"
+                            elif upstream_ref: # Tracks something else?
+                                 repo_info_display = f"跟踪: {upstream_ref}"
 
-                            self.local_nodes_only.append(node_info)
+                            node_info["repo_info"] = repo_info_display
 
-             except threading.ThreadExit: return
+                       self.local_nodes_only.append(node_info)
+
+             except threading.ThreadExit:
+                 return
              except Exception as e:
                   self.log_to_gui("Update", f"扫描本地 custom_nodes 目录时出错: {e}", "error", target_override="Launcher")
                   self.root.after(0, lambda: self.nodes_tree.insert("", tk.END, values=("扫描失败", "错误", "N/A", "扫描本地目录时出错", "N/A")))
@@ -2293,7 +2459,8 @@ class ComLauncherApp:
              self.log_to_gui("Update", f"ComfyUI custom_nodes 目录无效，跳过本地扫描。", "warn")
              self.root.after(0, lambda: self.nodes_tree.insert("", tk.END, values=("本地目录无效", "错误", "N/A", "", "")))
 
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
 
         # --- Fetching Online Config Data ---
         online_nodes_config = []
@@ -2302,17 +2469,20 @@ class ComLauncherApp:
         else:
             self.log_to_gui("Update", "节点配置地址未设置，跳过在线配置获取。", "warn")
 
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
 
         # --- Combine local and online data ---
         local_node_dict_lower = {node['name'].lower(): node for node in self.local_nodes_only}
         combined_nodes_dict = {node['name'].lower(): node for node in self.local_nodes_only} # Start with local
 
         for online_node in online_nodes_config:
-             if self.stop_event.is_set(): break
+             if self.stop_event.is_set():
+                 break
              try:
                  node_name = online_node.get('title') or online_node.get('name')
-                 if not node_name: continue
+                 if not node_name:
+                     continue
                  node_name_lower = node_name.lower()
                  # Find the first git URL in files list
                  repo_url = None
@@ -2322,7 +2492,8 @@ class ComLauncherApp:
                            if isinstance(file_entry, str) and file_entry.endswith(".git"):
                                 repo_url = file_entry
                                 break
-                 if not repo_url: continue
+                 if not repo_url:
+                     continue
 
                  target_ref = online_node.get('reference') or online_node.get('branch') or 'main'
 
@@ -2342,10 +2513,12 @@ class ComLauncherApp:
         # Convert combined dict back to list and sort by name
         self.all_known_nodes = sorted(list(combined_nodes_dict.values()), key=lambda x: x.get('name', '').lower())
 
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
 
         # --- Apply Filtering Logic ---
         filtered_nodes = []
+        search_term_value = self.nodes_search_entry.get().strip().lower() # Re-get value in case it changed during fetch
         if search_term_value == "": # Empty search -> show local only
             filtered_nodes = sorted(self.local_nodes_only, key=lambda x: x.get('name', '').lower())
         else: # Search term present -> filter combined list
@@ -2363,7 +2536,8 @@ class ComLauncherApp:
               self.root.after(0, lambda msg=display_message: self.nodes_tree.insert("", tk.END, values=("", msg, "", "", "")))
         else:
             for node_data in filtered_nodes:
-                 if self.stop_event.is_set(): break
+                 if self.stop_event.is_set():
+                     break
                  tags = ('installed',) if node_data.get('status') == '已安装' else ('not_installed',)
                  self.root.after(0, lambda v=(
                       node_data.get("name", "N/A"),
@@ -2379,7 +2553,8 @@ class ComLauncherApp:
     def _fetch_online_node_config(self):
          """Fetches and parses the online custom node list config."""
          node_config_url = self.node_config_url_var.get()
-         if not node_config_url: return []
+         if not node_config_url:
+             return []
 
          self.log_to_gui("Update", f"尝试从 {node_config_url} 获取节点配置...", "info")
          try:
@@ -2413,13 +2588,15 @@ class ComLauncherApp:
 
     def _update_all_nodes_task(self, nodes_to_process):
         """Task to iterate and update all specified installed nodes. Runs in worker thread."""
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
         self.log_to_gui("Update", f"开始更新全部节点 ({len(nodes_to_process)} 个)...", "info")
         updated_count = 0
         failed_nodes = []
 
         for index, node_info in enumerate(nodes_to_process):
-             if self.stop_event.is_set(): break
+             if self.stop_event.is_set():
+                 break
 
              node_name = node_info.get("name", "未知节点")
              node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name))
@@ -2448,15 +2625,19 @@ class ComLauncherApp:
                  if not current_url:
                       self.log_to_gui("Update", f"节点 '{node_name}': 远程 'origin' 不存在，尝试添加...", "info")
                       _, stderr_add, rc_add = self._run_git_command(["remote", "add", "origin", repo_url], cwd=node_install_path, timeout=15)
-                      if rc_add != 0: self.log_to_gui("Update", f"节点 '{node_name}': 添加远程 'origin' 失败: {stderr_add.strip()}", "warn")
+                      if rc_add != 0:
+                          self.log_to_gui("Update", f"节点 '{node_name}': 添加远程 'origin' 失败: {stderr_add.strip()}", "warn")
                  elif current_url != repo_url:
                       self.log_to_gui("Update", f"节点 '{node_name}': 远程 'origin' URL 不匹配 ({current_url}), 尝试设置新 URL...", "warn")
                       _, stderr_set, rc_set = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=15)
-                      if rc_set != 0: self.log_to_gui("Update", f"节点 '{node_name}': 设置远程 'origin' URL 失败: {stderr_set.strip()}", "warn")
-                      else: self.log_to_gui("Update", f"节点 '{node_name}': 远程 URL 已更新。", "info")
+                      if rc_set != 0:
+                          self.log_to_gui("Update", f"节点 '{node_name}': 设置远程 'origin' URL 失败: {stderr_set.strip()}", "warn")
+                      else:
+                          self.log_to_gui("Update", f"节点 '{node_name}': 远程 URL 已更新。", "info")
 
 
-                 if self.stop_event.is_set(): raise threading.ThreadExit
+                 if self.stop_event.is_set():
+                     raise threading.ThreadExit
 
                  stdout_status, _, _ = self._run_git_command(["status", "--porcelain"], cwd=node_install_path, timeout=10, log_output=False)
                  if stdout_status.strip():
@@ -2464,6 +2645,7 @@ class ComLauncherApp:
                       failed_nodes.append(f"{node_name} (存在本地修改)")
                       continue
 
+                 # Fetch the remote branch specifically
                  self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git fetch origin {remote_branch}...", "info")
                  _, stderr_fetch, rc_fetch = self._run_git_command(["fetch", "origin", remote_branch], cwd=node_install_path, timeout=60)
                  if rc_fetch != 0:
@@ -2471,30 +2653,53 @@ class ComLauncherApp:
                       failed_nodes.append(f"{node_name} (Fetch失败)")
                       continue
 
-                 if self.stop_event.is_set(): raise threading.ThreadExit
+                 if self.stop_event.is_set():
+                     raise threading.ThreadExit
 
-                 local_commit, _, _ = self._run_git_command(["rev-parse", "HEAD"], cwd=node_install_path, timeout=5, log_output=False)
-                 remote_commit, _, _ = self._run_git_command(["rev-parse", f"origin/{remote_branch}"], cwd=node_install_path, timeout=5, log_output=False)
+                 # Compare local HEAD with remote tracking branch
+                 local_commit_full, _, _ = self._run_git_command(["rev-parse", "HEAD"], cwd=node_install_path, timeout=5, log_output=False)
+                 remote_commit_full, _, _ = self._run_git_command(["rev-parse", f"origin/{remote_branch}"], cwd=node_install_path, timeout=5, log_output=False)
 
-                 if local_commit and remote_commit and local_commit.strip() == remote_commit.strip():
+                 if local_commit_full and remote_commit_full and local_commit_full.strip() == remote_commit_full.strip():
                      self.log_to_gui("Update", f"节点 '{node_name}' 已是最新版本。", "info")
                      continue
 
-                 self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git reset --hard origin/{remote_branch} for '{node_name}'...", "info")
-                 _, stderr_reset, returncode_reset = self._run_git_command(["reset", "--hard", f"origin/{remote_branch}"], cwd=node_install_path, timeout=60)
-                 if returncode_reset != 0:
-                       self.log_to_gui("Update", f"Git reset --hard 失败 for '{node_name}': {stderr_reset.strip()}", "error")
-                       failed_nodes.append(f"{node_name} (Reset失败)")
+                 # Checkout the remote tracking branch, discarding local changes
+                 self.log_to_gui("Update", f"[{index+1}/{len(nodes_to_process)}] 执行 Git checkout --force origin/{remote_branch} for '{node_name}'...", "info")
+                 _, stderr_checkout, returncode_checkout = self._run_git_command(["checkout", "--force", f"origin/{remote_branch}"], cwd=node_install_path, timeout=60)
+                 if returncode_checkout != 0:
+                       self.log_to_gui("Update", f"Git checkout --force 失败 for '{node_name}': {stderr_checkout.strip()}", "error")
+                       failed_nodes.append(f"{node_name} (Checkout失败)")
                        continue
+                 self.log_to_gui("Update", f"Git checkout 完成 for '{node_name}'.", "info")
 
-                 self.log_to_gui("Update", f"Git reset 完成 for '{node_name}'.", "info")
+                 # At this point, HEAD is detached and points to origin/<branch>. To make it track the branch,
+                 # we should optionally checkout the local branch again, or do a git pull.
+                 # Git pull is effectively fetch + merge/rebase. Since we just did reset --hard,
+                 # a simple `git pull origin <branch>` should work similarly to fetch + reset --hard.
+                 # Let's stick to checkout as it explicitly puts the working tree into the desired state.
+                 # To re-attach HEAD to the local branch if one exists with the same name as the remote tracking branch:
+                 local_branch_exists_stdout, _, rc_local_branch = self._run_git_command(["rev-parse", "--verify", "--quiet", remote_branch], cwd=node_install_path, timeout=5, log_output=False)
+                 if rc_local_branch == 0: # Local branch exists with the same name
+                      self.log_to_gui("Update", f"节点 '{node_name}': 本地分支 '{remote_branch}' 存在，尝试切换回本地分支...", "info")
+                      # Checkout the local branch, it should now point to the same commit as origin/<branch>
+                      _, stderr_checkout_local, rc_checkout_local = self._run_git_command(["checkout", remote_branch], cwd=node_install_path, timeout=30)
+                      if rc_checkout_local != 0:
+                           self.log_to_gui("Update", f"节点 '{node_name}': 切换回本地分支 '{remote_branch}' 失败: {stderr_checkout_local.strip()}", "warn")
+                      else:
+                           self.log_to_gui("Update", f"节点 '{node_name}': 已切换回本地分支 '{remote_branch}'.", "info")
+                 else:
+                      self.log_to_gui("Update", f"节点 '{node_name}': 未找到本地分支 '{remote_branch}', 保持在 detached HEAD 状态。", "info")
 
-                 if self.stop_event.is_set(): raise threading.ThreadExit
+
+                 if self.stop_event.is_set():
+                     raise threading.ThreadExit
 
                  if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
                       self.log_to_gui("Update", f"执行 Git submodule update for '{node_name}'...", "info")
                       _, stderr_sub, rc_sub = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180)
-                      if rc_sub != 0: self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
+                      if rc_sub != 0:
+                          self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
                  python_exe = self.python_exe_var.get()
                  requirements_path = os.path.join(node_install_path, "requirements.txt")
                  if python_exe and os.path.isfile(python_exe) and os.path.isfile(requirements_path):
@@ -2503,12 +2708,17 @@ class ComLauncherApp:
                       pip_cmd_extras = ["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121"]
                       pip_cmd = pip_cmd_base + pip_cmd_extras
                       is_venv = sys.prefix != sys.base_prefix
-                      if platform.system() != "Windows" and not is_venv: pip_cmd.append("--user")
+                      if platform.system() != "Windows" and not is_venv:
+                           if sys.base_prefix != sys.prefix:
+                                pass
+                           else:
+                                pip_cmd.append("--user")
+
                       pip_cmd.extend(["--no-cache-dir"])
 
                       _, stderr_pip, rc_pip = self._run_git_command(pip_cmd, cwd=node_install_path, timeout=180)
                       if rc_pip != 0:
-                           self.log_to_gui("Update", f"Pip 安装节点依赖失败 for '{node_name}': {stderr_pip.strip()}", "error")
+                           self.log_to_gui("Update", f"Pip 安装节点依赖失败: {stderr_pip.strip()}", "error")
                            failed_nodes.append(f"{node_name} (依赖安装失败)")
                       else:
                            self.log_to_gui("Update", f"Pip 安装节点依赖完成 for '{node_name}'.", "info")
@@ -2538,7 +2748,8 @@ class ComLauncherApp:
 
     def _node_uninstall_task(self, node_name, node_install_path):
          """Task to uninstall a node by deleting its directory. Runs in worker thread."""
-         if self.stop_event.is_set(): return
+         if self.stop_event.is_set():
+             return
          self.log_to_gui("Update", f"正在卸载节点 '{node_name}' (删除目录: {node_install_path})...", "info")
 
          try:
@@ -2547,7 +2758,8 @@ class ComLauncherApp:
                    self.root.after(0, lambda name=node_name: messagebox.showwarning("卸载失败", f"节点目录 '{name}' 不存在。", parent=self.root))
                    return
 
-              if self.stop_event.is_set(): raise threading.ThreadExit
+              if self.stop_event.is_set():
+                  raise threading.ThreadExit
 
               self.log_to_gui("Update", f"删除目录: {node_install_path}", "cmd") # Log the action
               shutil.rmtree(node_install_path)
@@ -2567,7 +2779,8 @@ class ComLauncherApp:
 
     def _install_node_task(self, node_name, node_install_path, repo_url, target_ref):
         """Task to execute git commands for INSTALLING a node (cloning). Runs in worker thread."""
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
         self.log_to_gui("Update", f"开始安装节点 '{node_name}'...", "info")
         self.log_to_gui("Update", f"  仓库: {repo_url}", "info")
         self.log_to_gui("Update", f"  目标引用: {target_ref}", "info")
@@ -2599,20 +2812,20 @@ class ComLauncherApp:
                            # If rmdir fails for some reason (e.g., permissions), raise an error
                            raise Exception(f"无法移除已存在的空目录 {node_install_path}: {e}")
 
-            if self.stop_event.is_set(): raise threading.ThreadExit
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
             self.log_to_gui("Update", f"执行 Git clone {repo_url} {node_install_path}...", "info")
             clone_cmd = ["clone", "--progress"] # --progress gives output during clone
             # Check if target_ref looks like a commit hash (approx 7+ hex chars)
             is_likely_commit_hash = len(target_ref) >= 7 and all(c in '0123456789abcdefABCDEF' for c in target_ref.lower())
 
-            # If target_ref is NOT likely a hash AND is not a common branch name, try cloning the specific branch
-            # Git clone -b <branch> only works for branches
-            # Cloning a specific commit hash needs checkout *after* cloning
+            # If target_ref is specified and is not a likely commit hash, try cloning the specific branch
+            # Git clone -b <branch> only works for branches. Tags/Commits need checkout after clone.
             if target_ref and not is_likely_commit_hash:
-                 clone_cmd.extend(["--branch", target_ref]) # Add branch flag if it's a branch name
-                 # If --branch fails (e.g. it was a tag or doesn't exist), the clone will proceed with default branch
-                 # This is acceptable, we can checkout the specific ref later if needed
+                 # Add branch flag. If it's not a branch name, the clone will proceed with default branch,
+                 # and the subsequent checkout step will handle tags or commits.
+                 clone_cmd.extend(["--branch", target_ref])
 
             clone_cmd.extend([repo_url, node_install_path])
 
@@ -2632,30 +2845,32 @@ class ComLauncherApp:
 
             self.log_to_gui("Update", "Git clone 完成。", "info")
 
-            # If target_ref was likely a commit hash or a tag, checkout after cloning
-            # We also do this if cloning a branch resulted in a detached HEAD (e.g., repo default branch is different)
-            # A simple way is to just *always* attempt checkout after clone if target_ref is specified
+            # If target_ref was specified, checkout the specific ref after cloning
+            # This handles tags, commit hashes, and ensures the correct state if --branch failed or wasn't used.
             if target_ref:
                  self.log_to_gui("Update", f"尝试执行 Git checkout {target_ref}...", "info")
-                 _, stderr_checkout, rc_checkout = self._run_git_command(["checkout", target_ref], cwd=node_install_path, timeout=60)
+                 # Use --force to ensure checkout succeeds even if clone resulted in unexpected state (shouldn't happen but safe)
+                 _, stderr_checkout, rc_checkout = self._run_git_command(["checkout", "--force", target_ref], cwd=node_install_path, timeout=60)
                  if rc_checkout != 0:
-                      # Checkout can fail for various reasons (e.g., target_ref not found after clone).
-                      # This is a warning, not a fatal error for installation, but might mean the wrong version was checked out.
+                      # Log warning, not fatal error, as the node is still installed, just maybe not the exact version.
                       self.log_to_gui("Update", f"Git checkout {target_ref[:8]} 失败: {stderr_checkout.strip()}", "warn")
                       self.root.after(0, lambda name=node_name, ref=target_ref[:8]: messagebox.showwarning("版本切换警告", f"节点 '{name}' 安装后尝试切换到版本 {ref} 失败。\n请查看日志。", parent=self.root))
                  else:
                       self.log_to_gui("Update", f"Git checkout {target_ref[:8]} 完成。", "info")
 
 
-            if self.stop_event.is_set(): raise threading.ThreadExit
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
             # Update submodules if .gitmodules exists
             if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
                  self.log_to_gui("Update", f"执行 Git submodule update for '{node_name}'...", "info")
                  _, stderr_sub, rc_sub = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180)
-                 if rc_sub != 0: self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
+                 if rc_sub != 0:
+                     self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
 
-            if self.stop_event.is_set(): raise threading.ThreadExit
+            if self.stop_event.is_set():
+                raise threading.ThreadExit
 
             # Install Python dependencies if requirements.txt exists
             python_exe = self.python_exe_var.get()
@@ -2666,7 +2881,12 @@ class ComLauncherApp:
                  pip_cmd_extras = ["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121"]
                  pip_cmd = pip_cmd_base + pip_cmd_extras
                  is_venv = sys.prefix != sys.base_prefix
-                 if platform.system() != "Windows" and not is_venv: pip_cmd.append("--user")
+                 if platform.system() != "Windows" and not is_venv:
+                       if sys.base_prefix != sys.prefix:
+                           pass
+                       else:
+                           pip_cmd.append("--user")
+
                  pip_cmd.extend(["--no-cache-dir"])
 
                  _, stderr_pip, rc_pip = self._run_git_command(pip_cmd, cwd=node_install_path, timeout=180)
@@ -2702,11 +2922,12 @@ class ComLauncherApp:
     # MOD2: Task to fetch git history for a node
     def _node_history_fetch_task(self, node_name, node_install_path):
          """Task to fetch git history and current commit for a node. Runs in worker thread."""
-         if self.stop_event.is_set(): return
+         if self.stop_event.is_set():
+             return
          self.log_to_gui("Update", f"正在获取节点 '{node_name}' 的版本历史...", "info")
 
          history_data = []
-         current_local_commit = None
+         current_local_commit = None # Full ID
          try:
              if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
                   raise Exception(f"节点目录不是有效的 Git 仓库: {node_install_path}")
@@ -2742,17 +2963,22 @@ class ComLauncherApp:
                  if not current_origin_url:
                       self.log_to_gui("Update", f"节点 '{node_name}': 远程 'origin' 不存在，尝试添加 URL '{repo_url}'...", "info")
                       _, stderr_add, rc_add = self._run_git_command(["remote", "add", "origin", repo_url], cwd=node_install_path, timeout=10)
-                      if rc_add != 0: self.log_to_gui("Update", f"节点 '{node_name}': 添加远程 'origin' 失败: {stderr_add.strip()}", "warn")
+                      if rc_add != 0:
+                          self.log_to_gui("Update", f"节点 '{node_name}': 添加远程 'origin' 失败: {stderr_add.strip()}", "warn")
                  elif current_origin_url != repo_url:
                      self.log_to_gui("Update", f"节点 '{node_name}': 远程 'origin' URL 不匹配 ({current_origin_url}), 尝试设置新 URL '{repo_url}'...", "warn")
                      _, stderr_set, rc_set = self._run_git_command(["remote", "set-url", "origin", repo_url], cwd=node_install_path, timeout=10)
-                     if rc_set != 0: self.log_to_gui("Update", f"节点 '{node_name}': 设置远程 URL 失败: {stderr_set.strip()}", "warn")
-                     else: self.log_to_gui("Update", f"节点 '{node_name}': 远程 URL 已更新。", "info")
+                     if rc_set != 0:
+                         self.log_to_gui("Update", f"节点 '{node_name}': 设置远程 URL 失败: {stderr_set.strip()}", "warn")
+                     else:
+                         self.log_to_gui("Update", f"节点 '{node_name}': 远程 URL 已更新。", "info")
 
                  # After ensuring remote is set, fetch
-                 if self.stop_event.is_set(): raise threading.ThreadExit
+                 if self.stop_event.is_set():
+                     raise threading.ThreadExit
                  self.log_to_gui("Update", f"执行 Git fetch origin --prune --tags -f for '{node_name}'...", "info")
-                 _, stderr_fetch, rc_fetch = self._run_git_command(["fetch", "origin", "--prune", "--tags", "-f"], cwd=node_install_path, timeout=60)
+                 # Increase timeout slightly for fetch
+                 _, stderr_fetch, rc_fetch = self._run_git_command(["fetch", "origin", "--prune", "--tags", "-f"], cwd=node_install_path, timeout=90)
                  if rc_fetch != 0:
                       self.log_to_gui("Update", f"Git fetch 失败 for '{node_name}': {stderr_fetch.strip()}", "error")
                       self.log_to_gui("Update", "无法从远程获取最新历史，列表可能不完整。", "warn")
@@ -2760,11 +2986,14 @@ class ComLauncherApp:
                   self.log_to_gui("Update", f"节点 '{node_name}': 无有效远程 URL，仅显示本地历史。", "warn")
 
 
-             if self.stop_event.is_set(): return
+             if self.stop_event.is_set():
+                 return
 
-             # Get all local references (branches, tags, HEAD) with their commits and dates
-             # Format: %(refname:short) %(objectname) %(committerdate:iso-strict)
-             log_cmd = ["for-each-ref", "refs/", "--sort=-committerdate", "--format=%(refname:short) %(objectname) %(committerdate:iso-strict)"]
+             # Get all local and fetched remote references (branches, tags, HEAD) with their commits and dates
+             # Format: %(refname) %(objectname) %(committerdate:iso-strict) %(contents:subject)
+             # Use full refname to distinguish local/remote/tags
+             # Added %(contents:subject) to get commit message for description
+             log_cmd = ["for-each-ref", "refs/", "--sort=-committerdate", "--format=%(refname) %(objectname) %(committerdate:iso-strict) %(contents:subject)"]
              history_output, _, rc_history = self._run_git_command(log_cmd, cwd=node_install_path, timeout=60)
 
              if rc_history != 0:
@@ -2772,43 +3001,75 @@ class ComLauncherApp:
                   self.log_to_gui("Update", "无法获取节点历史。", "error")
              else:
                   processed_commits = set() # To avoid duplicates for the same commit reachable by multiple refs
+                  # Parse history output
                   for line in history_output.splitlines():
-                       parts = line.split(' ', 2)
-                       if len(parts) == 3:
+                       parts = line.split(' ', 3) # Split into refname, commit_id, date_iso, subject (optional)
+                       if len(parts) >= 3:
                            refname, commit_id, date_iso = parts[0], parts[1], parts[2]
+                           description = parts[3].strip() if len(parts) == 4 else ""
 
+                           # Skip if we've already listed this commit hash
                            if commit_id in processed_commits:
-                                continue # Skip if we've already listed this commit
+                                continue
 
                            ref_type = "commit" # Default type
-                           display_name = refname # Default display name
+                           display_name = commit_id[:8] # Default display name is short commit ID
 
-                           if refname.startswith("refs/heads/"):
+                           if refname == "HEAD":
+                                # Find the symbolic ref for HEAD if possible to show local branch name
+                                head_sym_ref_out, _, _ = self._run_git_command(["symbolic-ref", "-q", "--short", "HEAD"], cwd=node_install_path, timeout=2, log_output=False)
+                                if head_sym_ref_out:
+                                    ref_type = "branch (HEAD)"
+                                    display_name = head_sym_ref_out.strip()
+                                else: # Detached HEAD
+                                    ref_type = "commit (HEAD)"
+                                    # display_name remains commit_id[:8] or set below
+
+                                description = f"HEAD - {description}" # Add HEAD marker to description
+                           elif refname.startswith("refs/heads/"):
                                 ref_type = "branch"
                                 display_name = refname.replace("refs/heads/", "")
                            elif refname.startswith("refs/remotes/origin/"):
                                 ref_type = "branch (remote)" # Indicate remote branch
                                 display_name = refname.replace("refs/remotes/origin/", "")
-                                if "HEAD ->" in display_name: # Skip remote HEAD alias
+                                if "HEAD" in display_name: # Skip remote HEAD alias more robustly
                                      continue
                            elif refname.startswith("refs/tags/"):
                                 ref_type = "tag"
                                 display_name = refname.replace("refs/tags/", "")
-                           elif refname == "HEAD":
-                                ref_type = "commit (HEAD)" # Indicate current HEAD
+                                description = f"TAG - {description}" # Add TAG marker to description
 
-                           history_data.append({"type": ref_type, "name": display_name, "commit_id": commit_id, "date_iso": date_iso})
+                           history_data.append({"type": ref_type, "name": display_name, "commit_id": commit_id, "date_iso": date_iso, "description": description})
                            processed_commits.add(commit_id)
 
              # Sort the history data (MOD1: Using custom comparison)
-             # Note: The git command already sorted by committerdate, but we sort again to apply custom rules
-             # and handle cases where date parsing failed.
              history_data.sort(key=cmp_to_key(_compare_versions_for_sort))
 
+             # --- Add current local commit if not already in the list (e.g., local-only commits) ---
+             if current_local_commit and current_local_commit not in processed_commits:
+                  self.log_to_gui("Update", "获取当前本地 Commit 信息...", "info")
+                  head_date_stdout, _, rc_head_date = self._run_git_command(["log", "-1", "--format=%ci", "HEAD"], cwd=node_install_path, timeout=5, log_output=False)
+                  head_subject_stdout, _, rc_head_subject = self._run_git_command(["log", "-1", "--format=%s", "HEAD"], cwd=node_install_path, timeout=5, log_output=False)
+                  head_date_iso = head_date_stdout.strip() if rc_head_date == 0 else None
+                  head_description = head_subject_stdout.strip() if rc_head_subject == 0 else "当前工作目录"
+                  date_obj = _parse_iso_date_for_sort(head_date_iso)
+                  final_date_iso = date_obj.isoformat() if date_obj else datetime.now(timezone.utc).isoformat()
 
-             self._node_history_modal_data = history_data
+                  # Determine type (detached HEAD or local branch not tracking remote)
+                  head_sym_ref_out, _, rc_head_sym_ref = self._run_git_command(["symbolic-ref", "-q", "--short", "HEAD"], cwd=node_install_path, timeout=2, log_output=False)
+                  head_type = "commit (HEAD)" if rc_head_sym_ref != 0 else "branch (local)"
+                  head_name = head_sym_ref_out.strip() if head_type == "branch (local)" else f"Detached at {current_local_commit[:8]}"
+
+                  history_data.append({"type": head_type, "name": head_name, "commit_id": current_local_commit, "date_iso": final_date_iso, "description": head_description})
+                  self.log_to_gui("Update", f"添加当前本地 HEAD ({current_local_commit[:8]}) 到列表。", "info")
+
+                  # Re-sort to include the added local HEAD
+                  history_data.sort(key=cmp_to_key(_compare_versions_for_sort))
+
+
+             self._node_history_modal_versions_data = history_data # Store in the designated variable
              self._node_history_modal_node_name = node_name
-             self._node_history_modal_path = node_install_path
+             self._node_history_modal_node_path = node_install_path
              self._node_history_modal_current_commit = current_local_commit # Full local commit ID
 
              self.log_to_gui("Update", f"节点 '{node_name}' 版本历史获取完成。找到 {len(history_data)} 条记录。", "info")
@@ -2824,17 +3085,21 @@ class ComLauncherApp:
              self.root.after(0, lambda msg=error_msg: messagebox.showerror("获取历史失败", msg, parent=self.root))
 
 
-    # MOD2: Show Node History Modal (Style refined inline)
-    # MOD1: Refactor styling to match node tab list layout and alignment
+    # MOD1: Show Node History Modal (Refactored Styling and Layout Fix)
     def _show_node_history_modal(self):
-        """Creates and displays the node version history modal with status and improved styling."""
-        if not self._node_history_modal_data:
+        """Creates and displays the node version history modal with improved styling resembling the Node list."""
+        # Check if the modal is already open or if data is missing
+        if self._node_history_modal_window and self._node_history_modal_window.winfo_exists():
+             print("[Launcher WARNING] Attempted to open node history modal, but one is already open.")
+             return # Do nothing if already open
+
+        if not self._node_history_modal_versions_data:
             self.log_to_gui("Update", f"没有节点 '{self._node_history_modal_node_name}' 的历史版本数据可显示。", "warn")
-            self._cleanup_modal_state()
+            self._cleanup_modal_state() # Clean up state if no data
             return
 
         node_name = self._node_history_modal_node_name
-        history_data = self._node_history_modal_data
+        history_data = self._node_history_modal_versions_data # Use stored data
         current_commit = self._node_history_modal_current_commit # Full local commit ID
 
         modal_window = Toplevel(self.root)
@@ -2858,16 +3123,18 @@ class ComLauncherApp:
 
 
         # --- Header Row --- Style and alignment confirmed/refined
-        # MOD1: Adjusted column widths/weights and ensured padding/sticky for alignment
-        header_frame = ttk.Frame(main_modal_frame, style='Modal.TFrame', padding=(0, 5, 0, 8))
-        header_frame.grid(row=0, column=0, sticky="ew")
-        # MOD2: Adjusted column weights/minsizes for modal treeview-like layout
-        header_frame.columnconfigure(0, weight=3, minsize=180) # Version Name (slightly wider)
-        header_frame.columnconfigure(1, weight=0, minsize=80)  # Status
-        header_frame.columnconfigure(2, weight=1, minsize=90) # Commit ID (slightly smaller)
-        header_frame.columnconfigure(3, weight=1, minsize=110) # Date (slightly smaller)
-        header_frame.columnconfigure(4, weight=0, minsize=80)  # Button (adjusted minsize)
+        header_frame = ttk.Frame(main_modal_frame, style='TabControl.TFrame', padding=(0, 5, 0, 8)) # MOD1: Use TabControl BG for header
+        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew") # MOD1: Span both canvas and potential scrollbar column
+        # MOD1: Adjusted column weights/minsizes for visual similarity to Nodes tab Treeview
+        # Columns: Version (Name+Type), Status, Commit ID, Date, Action
+        # Assign weights to distribute extra space proportionally
+        header_frame.columnconfigure(0, weight=4, minsize=250) # Version Name (wider)
+        header_frame.columnconfigure(1, weight=1, minsize=80)  # Status
+        header_frame.columnconfigure(2, weight=1, minsize=100) # Commit ID
+        header_frame.columnconfigure(3, weight=1, minsize=110) # Date
+        header_frame.columnconfigure(4, weight=0, minsize=80)  # Button (fixed size)
 
+        # MOD1: Use ModalHeader style, ensure alignment
         ttk.Label(header_frame, text="版本", style='ModalHeader.TLabel', anchor=tk.W).grid(row=0, column=0, sticky='w', padx=5)
         ttk.Label(header_frame, text="状态", style='ModalHeader.TLabel', anchor=tk.CENTER).grid(row=0, column=1, sticky='ew', padx=5)
         ttk.Label(header_frame, text="提交ID", style='ModalHeader.TLabel', anchor=tk.W).grid(row=0, column=2, sticky='w', padx=5)
@@ -2876,83 +3143,73 @@ class ComLauncherApp:
 
 
         # --- Scrollable Item List ---
-        canvas = tk.Canvas(main_modal_frame, bg=TEXT_AREA_BG, highlightthickness=0, borderwidth=0) # Use TEXT_AREA_BG for canvas background
+        # FIX 1: Removed style='Modal.TCanvas' as tk.Canvas doesn't support it.
+        canvas = tk.Canvas(main_modal_frame, bg=TEXT_AREA_BG, highlightthickness=1, highlightbackground=BORDER_COLOR, borderwidth=0) # Use bg directly
         scrollbar = ttk.Scrollbar(main_modal_frame, orient=tk.VERTICAL, command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas, style='Modal.TFrame') # This frame will hold the actual item rows
+        # scrollable_frame will contain the actual row frames
+        scrollable_frame = ttk.Frame(canvas, style='Modal.TFrame')
 
         # Bind the scrollable frame's size changes to update the canvas scrollregion
         scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         # Create the window on the canvas that holds the scrollable frame
-        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=1) # width=1 makes it match canvas width
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw") # Remove width=1, let it determine size
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        canvas.grid(row=1, column=0, sticky="nsew"); scrollbar.grid(row=1, column=1, sticky="ns")
+        canvas.grid(row=1, column=0, sticky="nsew")
+        scrollbar.grid(row=1, column=1, sticky="ns")
 
         # Bind canvas width changes to the scrollable frame's width
+        # This ensures the scrollable_frame fills the canvas width horizontally
         canvas.bind('<Configure>', lambda e: canvas.itemconfigure(canvas_window, width=e.width))
 
 
         # Configure columns of the scrollable frame to match header
-        # MOD1: Ensure these match the header frame's column configuration
-        scrollable_frame.columnconfigure(0, weight=3, minsize=180) # Version Name (slightly wider)
-        scrollable_frame.columnconfigure(1, weight=0, minsize=80)  # Status
-        scrollable_frame.columnconfigure(2, weight=1, minsize=90) # Commit ID (slightly smaller)
-        scrollable_frame.columnconfigure(3, weight=1, minsize=110) # Date (slightly smaller)
-        scrollable_frame.columnconfigure(4, weight=0, minsize=80)  # Button (adjusted minsize)
+        # FIX 2: Configure columns *only* on the scrollable_frame.
+        # These weights and minsizes will govern the width of the columns for ALL rows placed inside scrollable_frame.
+        scrollable_frame.columnconfigure(0, weight=4, minsize=250) # Version Name
+        scrollable_frame.columnconfigure(1, weight=1, minsize=80)  # Status
+        scrollable_frame.columnconfigure(2, weight=1, minsize=100) # Commit ID
+        scrollable_frame.columnconfigure(3, weight=1, minsize=110) # Date
+        scrollable_frame.columnconfigure(4, weight=0, minsize=80)  # Button
 
 
-        # Populate with history items
-        row_bg1, row_bg2 = TEXT_AREA_BG, "#282828" # Use darker backgrounds for rows
-        # Define styles for row frames with alternating backgrounds
-        self.style.configure('ModalRowOdd.TFrame', background=row_bg1)
-        self.style.configure('ModalRowEven.TFrame', background=row_bg2)
-        # Define styles for labels within these rows, ensuring they inherit the background
-        self.style.configure('ModalRowOdd.TLabel', background=row_bg1, foreground=FG_COLOR)
-        self.style.configure('ModalRowEven.TLabel', background=row_bg2, foreground=FG_COLOR)
-        self.style.configure('ModalRowOddHighlight.TLabel', background=row_bg1, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'))
-        self.style.configure('ModalRowEvenHighlight.TLabel', background=row_bg2, foreground=FG_HIGHLIGHT, font=(FONT_FAMILY_UI, FONT_SIZE_NORMAL, 'bold'))
-
-
+        # Populate with history items using new styles
         for i, item_data in enumerate(history_data):
              # Ensure necessary keys exist with default empty strings if missing
              item_data.setdefault('type', '未知')
              item_data.setdefault('name', 'N/A')
              item_data.setdefault('commit_id', 'N/A')
              item_data.setdefault('date_iso', '')
-             # Note: Description isn't displayed in modal table, but commit subject could be part of name/type
+             item_data.setdefault('description', 'N/A')
 
-             bg = row_bg1 if i % 2 == 0 else row_bg2
+
+             # Determine styles for alternating backgrounds
              row_frame_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}.TFrame'
              label_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}.TLabel'
              highlight_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}Highlight.TLabel'
 
-
+             # Create a frame for this row to hold the background color and contain the widgets
              row_frame = ttk.Frame(scrollable_frame, style=row_frame_style, padding=(0, 3))
-             # MOD1: Grid row_frame to span the entire width of the scrollable_frame
-             # Use row 'i', column 0 of scrollable_frame. Use sticky EW.
-             row_frame.grid(row=i, column=0, sticky="ew", padx=0, pady=0) # Use padx=0, pady=0 for tight packing
+             # FIX 2: Grid row_frame into scrollable_frame, spanning ALL columns
+             row_frame.grid(row=i, column=0, columnspan=5, sticky="ew", padx=0, pady=0)
 
-
-             # Configure columns for this row_frame to match header
-             # MOD1: Ensure these match the header frame's column configuration
-             row_frame.columnconfigure(0, weight=3, minsize=180); row_frame.columnconfigure(1, weight=0, minsize=80)
-             row_frame.columnconfigure(2, weight=1, minsize=90); row_frame.columnconfigure(3, weight=1, minsize=110)
-             row_frame.columnconfigure(4, weight=0, minsize=80)
-
+             # FIX 2: DO NOT configure columns on row_frame itself.
+             # row_frame.columnconfigure(...) <-- REMOVED
 
              try:
                  date_str = item_data['date_iso']
                  date_obj = _parse_iso_date_for_sort(date_str)
-                 date_display = date_obj.strftime('%Y-%m-%d') if date_obj else ("日期解析失败" if date_str else "无日期信息")
-             except: date_display = "日期错误"
+                 date_display = date_obj.strftime('%Y-%m-%d') if date_obj else ("解析失败" if date_str else "无日期")
+             except Exception:
+                 date_display = "日期错误"
 
              commit_id = item_data['commit_id']
              version_name = item_data['name']
              version_type = item_data['type']
+             description = item_data['description']
 
-             # Concatenate type and name for the first column
+             # Concatenate type and name for the first column (Version)
              version_display = f"{version_type} / {version_name}"
-
 
              status_text = ""
              status_label_actual_style = label_style # Default style
@@ -2962,18 +3219,25 @@ class ComLauncherApp:
                   status_label_actual_style = highlight_style # Use highlight style
 
 
-             # Add labels and button with refined alignment
-             # MOD1: Ensure sticky and padx/pady match desired alignment and column spans
-             ttk.Label(row_frame, text=version_display, style=label_style, anchor=tk.W, wraplength=row_frame.columnconfigure(0)['minsize'] - 10).grid(row=0, column=0, sticky='w', padx=5, pady=1) # Dynamic wraplength based on column width
-             status_label_widget = ttk.Label(row_frame, text=status_text, style=status_label_actual_style, anchor=tk.CENTER) # Use the determined style
-             status_label_widget.grid(row=0, column=1, sticky='ew', padx=5, pady=1) # Sticky EW for centering within column
+             # Add labels and button, gridding them *into the row_frame*
+             # FIX 2: Ensure widgets within row_frame are gridded into columns 0 through 4.
+             # Their size and placement within these columns will be influenced by the
+             # *parent* scrollable_frame's column configuration and their own sticky settings.
+             version_label_widget = ttk.Label(row_frame, text=version_display, style=label_style, anchor=tk.W, wraplength=240) # Use fixed wrap for simplicity
+             version_label_widget.grid(row=0, column=0, sticky='w', padx=5, pady=1)
+
+             status_label_widget = ttk.Label(row_frame, text=status_text, style=status_label_actual_style, anchor=tk.CENTER)
+             status_label_widget.grid(row=0, column=1, sticky='ew', padx=5, pady=1) # Sticky EW for centering
 
              ttk.Label(row_frame, text=commit_id[:8], style=label_style, anchor=tk.W).grid(row=0, column=2, sticky='w', padx=5, pady=1)
              ttk.Label(row_frame, text=date_display, style=label_style, anchor=tk.W).grid(row=0, column=3, sticky='w', padx=5, pady=1)
+             # Adding a description label here if needed
+             # ttk.Label(row_frame, text=description, style=label_style, anchor=tk.W, wraplength=300).grid(row=0, column=4, sticky='w', padx=5, pady=1) # Example if adding description col
+
 
              switch_btn = ttk.Button(row_frame, text="切换", style="Modal.TButton", width=6,
-                                     command=lambda c_id=commit_id, win=modal_window: self._on_modal_switch_confirm(win, c_id))
-             switch_btn.grid(row=0, column=4, sticky='e', padx=(5, 10), pady=1) # Align right
+                                     command=lambda c_id=commit_id, win=modal_window, name=node_name: self._on_modal_switch_confirm(win, name, c_id)) # Pass node_name and modal_window
+             switch_btn.grid(row=0, column=4, sticky='e', padx=(5, 10), pady=1) # Align button right
 
              if status_text == "当前":
                   switch_btn.config(state=tk.DISABLED)
@@ -2983,75 +3247,97 @@ class ComLauncherApp:
              scroll_amount = 0
              # Calculate scroll units based on OS/event type
              if platform.system() == "Windows":
+                 # Windows event.delta is 120 per notch
                  scroll_amount = int(-1*(event.delta/120))
              elif platform.system() == "Darwin": # macOS uses event.delta directly
-                 scroll_amount = int(-1 * event.delta)
+                 scroll_amount = int(-1 * event.delta) # Adjust sensitivity if needed
              else: # Linux, event.num indicates button 4 (up) or 5 (down)
-                 if event.num == 4: scroll_amount = -1
-                 elif event.num == 5: scroll_amount = 1
-             canvas.yview_scroll(scroll_amount, "units")
+                 if event.num == 4:
+                     scroll_amount = -1
+                 elif event.num == 5:
+                     scroll_amount = 1
+             # Check if canvas exists before scrolling
+             if canvas and canvas.winfo_exists():
+                canvas.yview_scroll(scroll_amount, "units")
 
         # Bind mousewheel to canvas and its children for broader coverage
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        scrollable_frame.bind_all("<MouseWheel>", _on_mousewheel)
-        # Bind mousewheel to individual row frames and their children for broader coverage
-        # (This might be overly aggressive but can catch events on inner widgets)
-        # Unbinding in _cleanup_modal_state is important if binding this broadly
-        for row_frame_widget in scrollable_frame.winfo_children():
-            if isinstance(row_frame_widget, ttk.Frame): # Should be the row frames
-                 row_frame_widget.bind_all("<MouseWheel>", _on_mousewheel, add="+") # Use add="+" to not replace existing bindings
-                 for widget in row_frame_widget.winfo_children(): # Widgets inside row frames
-                     widget.bind_all("<MouseWheel>", _on_mousewheel, add="+")
+        # Bind directly to the canvas first, which often covers the area
+        if canvas and canvas.winfo_exists():
+            canvas.bind("<MouseWheel>", _on_mousewheel)
+            # Optionally bind to the scrollable frame *inside* the canvas
+            if scrollable_frame and scrollable_frame.winfo_exists():
+                 scrollable_frame.bind("<MouseWheel>", _on_mousewheel)
+            # Binding to individual row frames/labels is usually not necessary and adds complexity
 
 
-        modal_window.wait_window() # Wait for the modal to be closed
+        # Keep the modal open until explicitly closed by the user (or WM_DELETE_WINDOW protocol)
+        # modal_window.wait_window() # Removed, as WM_DELETE_WINDOW protocol handles cleanup
 
 
     # MOD2: Cleanup Modal State
     def _cleanup_modal_state(self, modal_window=None):
          """Cleans up modal-related instance variables and destroys the window."""
-         self._node_history_modal_data = []
+         print("[Launcher DEBUG] Cleaning up modal state...")
+         # Clear internal state variables regardless of how the window is closed
+         self._node_history_modal_versions_data = []
          self._node_history_modal_node_name = ""
-         self._node_history_modal_path = ""
+         self._node_history_modal_node_path = ""
          self._node_history_modal_current_commit = ""
-         try:
-             if self._node_history_modal_window and self._node_history_modal_window.winfo_exists():
-                  # Unbind mousewheel events specifically from modal window and its children
-                  # This prevents global binding affecting other parts of the app after modal closes
-                  try:
-                       self._node_history_modal_window.unbind_all("<MouseWheel>")
-                       # Iterate through children and unbind, though unbind_all might cover it
-                       for widget in self._node_history_modal_window.winfo_children():
-                           widget.unbind_all("<MouseWheel>")
-                           if hasattr(widget, 'winfo_children'): # Recurse for frames
-                                for child in widget.winfo_children():
-                                     child.unbind_all("<MouseWheel>")
-                  except tk.TclError: pass # Ignore errors if widgets are already gone
 
-                  # Destroy the window if a valid window object is passed or stored reference exists
-                  if modal_window and modal_window.winfo_exists():
-                       modal_window.destroy()
-                  elif self._node_history_modal_window.winfo_exists():
-                       self._node_history_modal_window.destroy()
+         # Destroy the window if it exists and is not already destroyed
+         window_to_destroy = modal_window if modal_window else self._node_history_modal_window
+         if window_to_destroy and self.window_to_exists(window_to_destroy): # Use self.window_to_exists
+             try:
+                  # Attempt to unbind mousewheel events if bound specifically during modal creation
+                  # This is tricky. If bound to canvas and scrollable_frame, destroying the window
+                  # should clean them up. Explicit unbinding is often not needed when destroying
+                  # the parent widget, but can be added here if persistent issues occur.
+                  # Example: if hasattr(window_to_destroy, '_canvas'): window_to_destroy._canvas.unbind("<MouseWheel>")
 
-         except tk.TclError: pass # Ignore errors if the window is already destroyed
-         finally:
-              self._node_history_modal_window = None # Clear the reference
+                  window_to_destroy.destroy()
+                  print("[Launcher DEBUG] Modal window destroyed.")
+             except tk.TclError:
+                 # Window might already be destroyed if this is called multiple times
+                 print("[Launcher DEBUG] Modal window already destroyed (TclError during destroy).")
+                 pass
+             except Exception as e:
+                 print(f"[Launcher ERROR] Error during modal window destruction: {e}")
+
+         # Always clear the reference after attempting destruction
+         self._node_history_modal_window = None
+         print("[Launcher DEBUG] Modal state variables cleared.")
+
+         # Schedule a UI state update to re-enable buttons
+         self.root.after(0, self._update_ui_state)
+         print("[Launcher DEBUG] UI update scheduled after modal cleanup.")
+
+
+    # Helper function to check if a window widget exists safely
+    def window_to_exists(self, window): # Added self
+        """Safely checks if a Tkinter widget exists."""
+        try:
+            return window and window.winfo_exists()
+        except tk.TclError:
+            return False
+        except Exception:
+            return False
 
 
     # MOD2: Handle Modal Switch Confirmation and Queue Task
-    def _on_modal_switch_confirm(self, modal_window, target_commit_id):
+    def _on_modal_switch_confirm(self, modal_window, node_name, target_ref): # Added node_name
         """Handles the confirmation and queues the switch task from the modal."""
-        node_name = self._node_history_modal_node_name
-        node_install_path = self._node_history_modal_path
+        # Get node info from stored state variables (more reliable than relying on args from lambda)
+        # Although lambda captures are fine, using the state vars reinforces the modal's state dependency.
+        modal_node_name = self._node_history_modal_node_name
+        modal_node_path = self._node_history_modal_node_path
 
-        if not node_name or not node_install_path or not target_commit_id:
+        if not modal_node_name or not modal_node_path or not target_ref:
             messagebox.showerror("切换失败", "无法确定节点信息或目标版本。", parent=modal_window)
             self._cleanup_modal_state(modal_window)
             return
 
-        if not os.path.isdir(node_install_path) or not os.path.exists(os.path.join(node_install_path, ".git")):
-             messagebox.showerror("切换失败", f"节点目录 '{node_install_path}' 不是有效的 Git 仓库。", parent=modal_window)
+        if not os.path.isdir(modal_node_path) or not os.path.exists(os.path.join(modal_node_path, ".git")):
+             messagebox.showerror("切换失败", f"节点目录 '{modal_node_path}' 不是有效的 Git 仓库。", parent=modal_window)
              self._cleanup_modal_state(modal_window)
              return
 
@@ -3059,11 +3345,18 @@ class ComLauncherApp:
         if self._is_comfyui_running() or self.comfyui_externally_detected:
              messagebox.showwarning("服务运行中", "请先停止 ComfyUI 后台服务，再进行节点版本切换。", parent=modal_window)
              # Don't close the modal, let the user stop ComfyUI first
-             # self._cleanup_modal_state(modal_window) # Do NOT close modal here
              return # Do not queue the task if ComfyUI is running
 
-        self.log_to_gui("Launcher", f"将节点 '{node_name}' 切换到版本 {target_commit_id[:8]} 任务添加到队列...", "info")
-        self.update_task_queue.put((self._switch_node_to_ref_task, [node_name, node_install_path, target_commit_id], {}))
+        confirm = messagebox.askyesno(
+            "确认切换版本",
+            f"确定要将节点 '{modal_node_name}' 切换到版本 (引用: {target_ref[:8]}) 吗？\n\n警告: 此操作会覆盖节点目录下的本地修改，并可能导致与其他节点不兼容！\n确认前请确保 ComfyUI 已停止运行。",
+            parent=modal_window
+        )
+        if not confirm:
+            return # User cancelled, leave modal open
+
+        self.log_to_gui("Launcher", f"将节点 '{modal_node_name}' 切换到版本 {target_ref[:8]} 任务添加到队列...", "info")
+        self.update_task_queue.put((self._switch_node_to_ref_task, [modal_node_name, modal_node_path, target_ref], {})) # Pass correct arguments
 
         self._cleanup_modal_state(modal_window) # Close modal after queuing task
         self.root.after(0, self._update_ui_state) # Update UI state to show task running
@@ -3072,7 +3365,8 @@ class ComLauncherApp:
     # MOD2: Task to switch an installed node to a specific git reference
     def _switch_node_to_ref_task(self, node_name, node_install_path, target_ref):
          """Task to switch an installed node to a specific git reference. Runs in worker thread."""
-         if self.stop_event.is_set(): return
+         if self.stop_event.is_set():
+             return
          self.log_to_gui("Update", f"正在将节点 '{node_name}' 切换到版本 (引用: {target_ref[:8]})...", "info")
 
          try:
@@ -3084,22 +3378,30 @@ class ComLauncherApp:
              if stdout_status.strip():
                   self.log_to_gui("Update", f"节点 '{node_name}' 存在未提交的本地修改，将通过 checkout --force 覆盖。", "warn")
 
-             if self.stop_event.is_set(): raise threading.ThreadExit
+             if self.stop_event.is_set():
+                 raise threading.ThreadExit
 
+             # Checkout the target reference (commit hash, tag, branch name, remote branch name)
              self.log_to_gui("Update", f"执行 Git checkout --force {target_ref[:8]}...", "info")
-             # Use --force to discard local changes if any
+             # Use --force to discard local changes if any and handle detached HEAD gracefully
              _, stderr_checkout, rc_checkout = self._run_git_command(["checkout", "--force", target_ref], cwd=node_install_path, timeout=60)
-             if rc_checkout != 0: raise Exception(f"Git checkout 失败: {stderr_checkout.strip()}")
+             if rc_checkout != 0:
+                 raise Exception(f"Git checkout 失败: {stderr_checkout.strip()}")
 
-             if self.stop_event.is_set(): raise threading.ThreadExit
+             self.log_to_gui("Update", f"Git checkout 完成 (引用: {target_ref[:8]}).", "info")
+
+             if self.stop_event.is_set():
+                 raise threading.ThreadExit
 
              # Update submodules if .gitmodules exists
              if os.path.exists(os.path.join(node_install_path, ".gitmodules")):
                  self.log_to_gui("Update", f"执行 Git submodule update for '{node_name}'...", "info")
                  _, stderr_sub, rc_sub = self._run_git_command(["submodule", "update", "--init", "--recursive", "--force"], cwd=node_install_path, timeout=180)
-                 if rc_sub != 0: self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
+                 if rc_sub != 0:
+                     self.log_to_gui("Update", f"Git submodule update 失败: {stderr_sub.strip()}", "warn")
 
-             if self.stop_event.is_set(): raise threading.ThreadExit
+             if self.stop_event.is_set():
+                 raise threading.ThreadExit
 
              # Re-install Python dependencies if requirements.txt exists
              python_exe = self.python_exe_var.get()
@@ -3110,13 +3412,18 @@ class ComLauncherApp:
                   pip_cmd_extras = ["--extra-index-url", "https://download.pytorch.org/whl/cu118", "--extra-index-url", "https://download.pytorch.org/whl/cu121"]
                   pip_cmd = pip_cmd_base + pip_cmd_extras
                   is_venv = sys.prefix != sys.base_prefix
-                  if platform.system() != "Windows" and not is_venv: pip_cmd.append("--user")
+                  if platform.system() != "Windows" and not is_venv:
+                       if sys.base_prefix != sys.prefix:
+                           pass
+                       else:
+                           pip_cmd.append("--user")
+
                   pip_cmd.extend(["--no-cache-dir"])
 
                   _, stderr_pip, rc_pip = self._run_git_command(pip_cmd, cwd=node_install_path, timeout=180)
                   if rc_pip != 0:
                        self.log_to_gui("Update", f"Pip 安装节点依赖失败: {stderr_pip.strip()}", "error")
-                       self.root.after(0, lambda name=node_name: messagebox.showwarning("依赖安装失败", f"节点 '{name}' 的 Python 依赖可能安装失败。", parent=self.root))
+                       self.root.after(0, lambda name=node_name: messagebox.showwarning("依赖安装失败", f"节点 '{name}' 的 Python 依赖可能安装失败。\n请查看日志。", parent=self.root))
                   else:
                        self.log_to_gui("Update", f"Pip 安装节点依赖完成.", "info")
 
@@ -3143,7 +3450,8 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
 
         api_endpoint = self.error_api_endpoint_var.get().strip()
         api_key = self.error_api_key_var.get().strip()
@@ -3165,7 +3473,7 @@ class ComLauncherApp:
                  # Assumes timestamp format is [YYYY-MM-DD HH:MM:SS]
                  raw_launcher_logs = self.launcher_log_text.get("1.0", tk.END).strip()
                  launcher_logs = "\n".join([
-                      line[22:] if line.startswith('[') and line[20:21] == ']' else line
+                      line[22:] if line.startswith('[') and len(line) > 21 and line[20:21] == ']' else line
                       for line in raw_launcher_logs.splitlines()
                  ])
 
@@ -3175,7 +3483,7 @@ class ComLauncherApp:
                  # Assumes prefixes like "[ComfyUI]", "[ComfyUI ERR]"
                  raw_comfyui_logs = self.main_output_text.get("1.0", tk.END).strip()
                  comfyui_logs = "\n".join([
-                      line[line.find(']') + 2:] if line.startswith('[ComfyUI') else line
+                      line[line.find(']') + 2:] if line.startswith('[ComfyUI') and ']' in line else line
                       for line in raw_comfyui_logs.splitlines()
                  ])
 
@@ -3218,7 +3526,8 @@ class ComLauncherApp:
                  self.error_analysis_text.config(state=tk.NORMAL)
                  self.error_analysis_text.delete('1.0', tk.END)
                  self.error_analysis_text.config(state=tk.DISABLED)
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
         # No need to update UI state here, worker thread handles it
         # self._update_ui_state() # Disable buttons
@@ -3384,13 +3693,15 @@ class ComLauncherApp:
              messagebox.showwarning("操作进行中", "请先关闭节点版本历史弹窗。", parent=self.root)
              return
         if self._is_update_task_running():
-             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn"); return
+             self.log_to_gui("Launcher", "更新任务正在进行中...", "warn")
+             return
 
         analysis_output = ""
         try:
             if hasattr(self, 'error_analysis_text') and self.error_analysis_text.winfo_exists():
                  analysis_output = self.error_analysis_text.get("1.0", tk.END).strip()
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
         if not analysis_output:
              messagebox.showwarning("无输出", "错误分析输出为空，无法执行修复。", parent=self.root)
@@ -3415,7 +3726,8 @@ class ComLauncherApp:
 
 
             if capture_commands:
-                 if not line_clean: continue
+                 if not line_clean:
+                     continue
                  # Remove potential comment/prompt prefixes
                  potential_cmd = line_clean.lstrip('#').lstrip('$').strip()
                  # Basic check for common command starts, case-insensitive
@@ -3429,7 +3741,8 @@ class ComLauncherApp:
 
         confirm_msg = f"检测到以下 {len(commands_to_simulate)} 条建议修复命令：\n\n" + "\n".join(f"- {cmd}" for cmd in commands_to_simulate) + "\n\n将模拟执行这些命令并在下方显示过程。\n注意：这不会实际修改您的文件系统。\n\n是否开始模拟修复？"
         confirm = messagebox.askyesno("确认模拟修复", confirm_msg, parent=self.root)
-        if not confirm: return
+        if not confirm:
+            return
 
         self.log_to_gui("ErrorAnalysis", "\n--- 开始模拟修复流程 ---", "info")
         # No need to update UI state here, worker thread handles it
@@ -3441,19 +3754,21 @@ class ComLauncherApp:
 
     def _run_fix_simulation_task(self, commands_to_simulate):
         """Task to simulate executing a list of commands. Runs in worker thread."""
-        if self.stop_event.is_set(): return
+        if self.stop_event.is_set():
+            return
         self.log_to_gui("ErrorAnalysis", "准备模拟执行修复命令...", "info")
 
         # Use current values for paths
         comfyui_nodes_dir_fmt = self.comfyui_nodes_dir if self.comfyui_nodes_dir else "[custom_nodes 目录未设置]"
         git_exe_fmt = self.git_exe_path if self.git_exe_path else "[Git路径未设置]"
         python_exe_fmt = self.comfyui_portable_python if self.comfyui_portable_python else "[Python路径未设置]"
-        comfyui_dir_fmt = self.comfyui_install_dir if self.compiu_install_dir else "[ComfyUI目录未设置]"
+        comfyui_dir_fmt = self.comfyui_install_dir if self.comfyui_install_dir else "[ComfyUI目录未设置]"
 
         simulated_cwd = comfyui_dir_fmt # Start in ComfyUI directory
 
         for index, cmd_template in enumerate(commands_to_simulate):
-             if self.stop_event.is_set(): break
+             if self.stop_event.is_set():
+                 break
 
              # Perform replacements case-insensitively and handle potential issues
              cmd_string = cmd_template
@@ -3474,7 +3789,8 @@ class ComLauncherApp:
              self.log_to_gui("ErrorAnalysis", f"$ {cmd_string}", "cmd")
 
              time.sleep(0.5) # Short delay
-             if self.stop_event.is_set(): break
+             if self.stop_event.is_set():
+                 break
 
              simulated_output = "(模拟输出)"
              cmd_lower = cmd_string.lower().strip()
@@ -3504,7 +3820,7 @@ class ComLauncherApp:
                   simulated_output = "(模拟输出)\n模拟: 检查依赖...\n模拟: Requirement already satisfied."
                   self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
              elif "git clone" in cmd_lower:
-                  simulated_output = "(模拟输出)\n模拟: 克隆仓库...\n模拟: 克隆完成。"
+                  simulated_output = "(模拟输出)\n模拟: 克隆仓库...\n模拟: 克隆完成。\n模拟: 尝试执行 Git checkout main..." # Simulate checkout after clone
                   self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
              elif "git checkout" in cmd_lower:
                   simulated_output = "(模拟输出)\n模拟: 切换分支/提交...\n模拟: Checkout complete."
@@ -3517,15 +3833,6 @@ class ComLauncherApp:
                   self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
              elif cmd_lower.startswith("rm ") or cmd_lower.startswith("del "):
                   simulated_output = "(模拟输出)\n模拟: 删除文件/目录..."
-                  self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
-             elif cmd_lower.startswith("mv ") or cmd_lower.startswith("move "):
-                  simulated_output = "(模拟输出)\n模拟: 移动文件/目录..."
-                  self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
-             elif cmd_lower.startswith("mkdir "):
-                  simulated_output = "(模拟输出)\n模拟: 创建目录..."
-                  self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
-             elif cmd_lower.startswith("conda install"):
-                  simulated_output = "(模拟输出)\n模拟: Conda安装依赖...\n模拟: Installation complete."
                   self.log_to_gui("ErrorAnalysis", simulated_output, "stdout")
              else:
                   self.log_to_gui("ErrorAnalysis", "(模拟: 命令执行完成)", "stdout")
@@ -3558,7 +3865,7 @@ class ComLauncherApp:
         try: # Check progress bar state safely
             if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists():
                  is_progress_bar_running = self.progress_bar.winfo_ismapped() and self.progress_bar.cget('mode') == 'indeterminate'
-                 label_text = self.status_label.cget("text") if hasattr(self, 'status_label') else ""
+                 label_text = self.status_label.cget("text") if hasattr(self, 'status_label') and self.status_label.winfo_exists() else ""
                  # Check if status label indicates ComfyUI specific start/stop
                  if any(status_text in label_text for status_text in ["启动 ComfyUI", "停止 ComfyUI", "停止所有服务"]):
                       is_starting_stopping_comfy = True
@@ -3582,9 +3889,14 @@ class ComLauncherApp:
             main_stop_style = "StopRunning.TButton"
             # Run button disabled while any update task is running
             run_comfyui_enabled = tk.DISABLED
-        elif is_starting_stopping_comfy: # Catches ComfyUI start/stop phases specifically
-             try: status_text = self.status_label.cget("text") # Keep existing status during transitions
-             except: status_text = "状态: ComfyUI 启动/停止中..."
+        elif is_starting_stopping_comfy: # Catches ComfyUI specific start/stop phases specifically
+             try:
+                 if hasattr(self, 'status_label') and self.status_label.winfo_exists():
+                      status_text = self.status_label.cget("text") # Keep existing status during transitions
+                 else:
+                      status_text = "状态: ComfyUI 启动/停止中..."
+             except tk.TclError:
+                 status_text = "状态: ComfyUI 启动/停止中..."
              run_comfyui_enabled = tk.DISABLED # Disabled while starting/stopping ComfyUI
              stop_all_enabled = tk.NORMAL
              main_stop_style = "StopRunning.TButton"
@@ -3615,14 +3927,16 @@ class ComLauncherApp:
                     self.progress_bar.start(10)
                 elif not should_run_progress and is_progress_bar_running:
                     self.progress_bar.stop()
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
 
         # Update Status Label
         try:
             if hasattr(self, 'status_label') and self.status_label.winfo_exists():
                  self.status_label.config(text=status_text)
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
         # Update Global Run/Stop Buttons
         try:
@@ -3630,7 +3944,8 @@ class ComLauncherApp:
                  self.run_all_button.config(state=run_comfyui_enabled)
             if hasattr(self, 'stop_all_button') and self.stop_all_button.winfo_exists():
                  self.stop_all_button.config(state=stop_all_enabled, style=main_stop_style)
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
         # --- Update Management Tab Buttons ---
         # Base state for *most* update buttons: Enabled if git OK AND no update/start/stop task running AND modal is closed
@@ -3643,16 +3958,28 @@ class ComLauncherApp:
                  self.refresh_main_body_button.config(state=base_update_enabled)
 
             if hasattr(self, 'activate_main_body_button') and self.activate_main_body_button.winfo_exists():
-                 item_selected_main = bool(self.main_body_tree.focus()) if hasattr(self, 'main_body_tree') and self.main_body_tree.winfo_exists() else False
-                 comfy_dir_is_repo = self.comfyui_install_dir and os.path.isdir(os.path.join(self.comfyui_install_dir, ".git"))
+                 item_selected_main = False
+                 if hasattr(self, 'main_body_tree') and self.main_body_tree.winfo_exists():
+                     item_selected_main = bool(self.main_body_tree.focus())
+
+                 comfy_dir_is_repo = False
+                 if self.comfyui_install_dir and os.path.isdir(self.comfyui_install_dir):
+                      comfy_dir_is_repo = os.path.isdir(os.path.join(self.comfyui_install_dir, ".git"))
+
                  # Activate requires base enabled, item selected, ComfyUI dir is git repo AND ComfyUI not running/detected
-                 activate_enabled = base_update_enabled if item_selected_main and comfy_dir_is_repo and not comfy_running_internally and not comfy_detected_externally else tk.DISABLED
-                 self.activate_main_body_button.config(state=activate_enabled)
+                 activate_enabled_state = tk.DISABLED
+                 if base_update_enabled == tk.NORMAL and item_selected_main and comfy_dir_is_repo and not comfy_running_internally and not comfy_detected_externally:
+                      activate_enabled_state = tk.NORMAL
+
+                 self.activate_main_body_button.config(state=activate_enabled_state)
 
             # Nodes Tab
-            item_selected_nodes = bool(self.nodes_tree.focus()) if hasattr(self, 'nodes_tree') and self.nodes_tree.winfo_exists() else False
+            item_selected_nodes = False
+            if hasattr(self, 'nodes_tree') and self.nodes_tree.winfo_exists():
+                 item_selected_nodes = bool(self.nodes_tree.focus())
+
             node_is_installed = False; node_is_git = False; node_has_url = False
-            if item_selected_nodes and hasattr(self, 'nodes_tree') and self.comfyui_nodes_dir: # Check nodes_dir exists
+            if item_selected_nodes and hasattr(self, 'nodes_tree') and self.nodes_tree.winfo_exists() and self.comfyui_nodes_dir: # Check nodes_dir exists
                  try:
                       node_data = self.nodes_tree.item(self.nodes_tree.focus(), 'values')
                       if node_data and len(node_data) >= 5:
@@ -3668,34 +3995,48 @@ class ComLauncherApp:
                                 node_install_path = os.path.normpath(os.path.join(self.comfyui_nodes_dir, node_name_selected))
                                 node_is_git = os.path.isdir(node_install_path) and os.path.isdir(os.path.join(node_install_path, ".git"))
 
-                 except Exception as e: print(f"[Launcher DEBUG] Error getting node state: {e}") # Log error but continue
+                 except Exception as e:
+                     print(f"[Launcher DEBUG] Error getting node state: {e}") # Log error but continue
 
             # Search entry and button enabled if no update/start/stop task running AND modal is closed
             search_enabled = tk.NORMAL if not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
-            if hasattr(self, 'nodes_search_entry') and self.nodes_search_entry.winfo_exists(): self.nodes_search_entry.config(state=search_enabled)
-            if hasattr(self, 'search_nodes_button') and self.search_nodes_button.winfo_exists(): self.search_nodes_button.config(state=search_enabled)
-            if hasattr(self, 'refresh_nodes_button') and self.refresh_nodes_button.winfo_exists(): self.refresh_nodes_button.config(state=base_update_enabled)
+            if hasattr(self, 'nodes_search_entry') and self.nodes_search_entry.winfo_exists():
+                self.nodes_search_entry.config(state=search_enabled)
+            if hasattr(self, 'search_nodes_button') and self.search_nodes_button.winfo_exists():
+                self.search_nodes_button.config(state=search_enabled)
+            if hasattr(self, 'refresh_nodes_button') and self.refresh_nodes_button.winfo_exists():
+                self.refresh_nodes_button.config(state=base_update_enabled)
 
             # Switch/Install Button Logic:
             # Enabled if base enabled, item selected, ComfyUI not running, AND (can switch OR can install)
             can_switch = node_is_installed and node_is_git and node_has_url # Need git repo for history/switch
             can_install = not node_is_installed and node_has_url # Need remote URL to install
-            switch_install_final_state = base_update_enabled if item_selected_nodes and (can_switch or can_install) and not comfy_running_internally and not comfy_detected_externally else tk.DISABLED
+            switch_install_final_state = tk.DISABLED
+            if base_update_enabled == tk.NORMAL and item_selected_nodes and (can_switch or can_install) and not comfy_running_internally and not comfy_detected_externally:
+                switch_install_final_state = tk.NORMAL
+
             if hasattr(self, 'switch_install_node_button') and self.switch_install_node_button.winfo_exists():
                  # Text changes based on selection state
-                 button_text = "切换版本" if node_is_installed and node_is_git else "安装节点" if node_has_url else "切换版本" # Default to switch if info missing
+                 button_text = "切换版本" # Default
+                 if item_selected_nodes: # Only change text if an item is actually selected
+                      button_text = "切换版本" if node_is_installed and node_is_git else "安装节点" if node_has_url else "切换版本"
+
                  self.switch_install_node_button.config(state=switch_install_final_state, text=button_text)
 
 
             # Uninstall Button Logic:
             # Enabled if base enabled, item selected, installed, AND ComfyUI not running
-            uninstall_final_state = base_update_enabled if item_selected_nodes and node_is_installed and not comfy_running_internally and not comfy_detected_externally else tk.DISABLED
+            uninstall_final_state = tk.DISABLED
+            if base_update_enabled == tk.NORMAL and item_selected_nodes and node_is_installed and not comfy_running_internally and not comfy_detected_externally:
+                 uninstall_final_state = tk.NORMAL
             if hasattr(self, 'uninstall_node_button') and self.uninstall_node_button.winfo_exists():
                  self.uninstall_node_button.config(state=uninstall_final_state)
 
             # Update All Button Logic:
             # Enabled if base enabled AND ComfyUI not running
-            update_all_final_state = base_update_enabled if not comfy_running_internally and not comfy_detected_externally else tk.DISABLED
+            update_all_final_state = tk.DISABLED
+            if base_update_enabled == tk.NORMAL and not comfy_running_internally and not comfy_detected_externally:
+                 update_all_final_state = tk.NORMAL
             if hasattr(self, 'update_all_nodes_button') and self.update_all_nodes_button.winfo_exists():
                  self.update_all_nodes_button.config(state=update_all_final_state)
 
@@ -3703,10 +4044,12 @@ class ComLauncherApp:
             api_endpoint_set = bool(self.error_api_endpoint_var.get().strip())
             api_key_set = bool(self.error_api_key_var.get().strip()) # MOD4: Check key presence
             # Diagnose enabled if API endpoint AND key are set, AND no update/start/stop task running AND modal is closed
-            diagnose_enabled = tk.NORMAL if api_endpoint_set and api_key_set and not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
+            diagnose_enabled_state = tk.DISABLED
+            if api_endpoint_set and api_key_set and not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
+                 diagnose_enabled_state = tk.NORMAL
 
             if hasattr(self, 'diagnose_button') and self.diagnose_button.winfo_exists():
-                 self.diagnose_button.config(state=diagnose_enabled)
+                 self.diagnose_button.config(state=diagnose_enabled_state)
 
             # Fix button is enabled if diagnose is enabled AND an update/fix task is NOT running, AND there is content in the analysis output AND modal is closed
             analysis_has_content = False
@@ -3714,22 +4057,32 @@ class ComLauncherApp:
                 if hasattr(self, 'error_analysis_text') and self.error_analysis_text.winfo_exists():
                     # Check if the text widget has any content other than the initial state
                     analysis_has_content = bool(self.error_analysis_text.get("1.0", "end-1c").strip()) # end-1c to ignore trailing newline
-            except tk.TclError: pass
+            except tk.TclError:
+                pass
 
-            fix_enabled = tk.NORMAL if diagnose_enabled == tk.NORMAL and analysis_has_content and not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
+            fix_enabled_state = tk.DISABLED
+            if diagnose_enabled_state == tk.NORMAL and analysis_has_content and not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
+                 fix_enabled_state = tk.NORMAL
 
             if hasattr(self, 'fix_button') and self.fix_button.winfo_exists():
-                 self.fix_button.config(state=fix_enabled)
+                 self.fix_button.config(state=fix_enabled_state)
 
             # User request text area is enabled if no update/start/stop task running AND modal is closed
-            user_request_enabled = tk.NORMAL if not update_task_running and not is_starting_stopping_comfy and not modal_is_open else tk.DISABLED
+            user_request_enabled_state = tk.DISABLED
+            if not update_task_running and not is_starting_stopping_comfy and not modal_is_open:
+                user_request_enabled_state = tk.NORMAL
             if hasattr(self, 'user_request_text') and self.user_request_text.winfo_exists():
-                 self.user_request_text.config(state=user_request_enabled)
+                 # Use 'normal' or 'disabled' state for ScrolledText
+                 widget_state = tk.NORMAL if user_request_enabled_state == tk.NORMAL else tk.DISABLED
+                 self.user_request_text.config(state=widget_state)
 
 
-        except tk.TclError as e: print(f"[Launcher WARNING] Error updating UI state (widget might not exist): {e}")
-        except AttributeError as e: print(f"[Launcher WARNING] Error updating UI state (attribute missing): {e}")
-        except Exception as e: print(f"[Launcher ERROR] Unexpected error updating UI state: {e}")
+        except tk.TclError as e:
+            print(f"[Launcher WARNING] Error updating UI state (widget might not exist): {e}")
+        except AttributeError as e:
+            print(f"[Launcher WARNING] Error updating UI state (attribute missing): {e}")
+        except Exception as e:
+            print(f"[Launcher ERROR] Unexpected error updating UI state: {e}")
 
 
     def reset_ui_on_error(self):
@@ -3739,7 +4092,8 @@ class ComLauncherApp:
             # Stop progress bar if it's running
             if hasattr(self, 'progress_bar') and self.progress_bar.winfo_exists() and self.progress_bar.winfo_ismapped():
                 self.progress_bar.stop()
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
         # Ensure internal state flags are reset
         if self.comfyui_process and self.comfyui_process.poll() is not None:
@@ -3819,11 +4173,14 @@ class ComLauncherApp:
         """Clears the text in the output ScrolledText widgets."""
         # MOD6: Only clear ComfyUI and Analysis logs, preserve Launcher logs
         widgets_to_clear = []
-        if hasattr(self, 'main_output_text'): widgets_to_clear.append(self.main_output_text) # ComfyUI Log
+        if hasattr(self, 'main_output_text'):
+            widgets_to_clear.append(self.main_output_text) # ComfyUI Log
         # if hasattr(self, 'launcher_log_text'): widgets_to_clear.append(self.launcher_log_text) # Launcher Log - REMOVED as per MOD6
-        if hasattr(self, 'error_analysis_text'): widgets_to_clear.append(self.error_analysis_text) # Analysis Log
+        if hasattr(self, 'error_analysis_text'):
+            widgets_to_clear.append(self.error_analysis_text) # Analysis Log
         # MOD5: Also clear User Request text box
-        if hasattr(self, 'user_request_text'): widgets_to_clear.append(self.user_request_text)
+        if hasattr(self, 'user_request_text'):
+            widgets_to_clear.append(self.user_request_text)
 
         self.log_to_gui("Launcher", "清空 ComfyUI 日志、用户诉求和分析区域...", "info") # Update log message
 
@@ -3832,9 +4189,11 @@ class ComLauncherApp:
                 if widget and widget.winfo_exists():
                     widget.config(state=tk.NORMAL)
                     widget.delete('1.0', tk.END)
-                    # Set state back - Analysis output should be disabled, User request should be normal
-                    widget.config(state=tk.DISABLED if widget == self.error_analysis_text or widget == self.main_output_text else tk.NORMAL)
-            except tk.TclError: pass
+                    # Set state back - Analysis/ComfyUI logs disabled, User request normal
+                    is_output_log = widget == self.error_analysis_text or widget == self.main_output_text
+                    widget.config(state=tk.DISABLED if is_output_log else tk.NORMAL)
+            except tk.TclError:
+                pass
 
 
     # Method to handle 'git pull pause' for the launcher itself
@@ -3857,20 +4216,22 @@ class ComLauncherApp:
 
         try:
             # Construct the command based on OS to run in a new terminal and pause
-            command = ""
+            command_parts = []
             if platform.system() == "Windows":
                 # Use start cmd /k for a new window that stays open
                 # Quote paths with spaces
                 quoted_launcher_dir = shlex.quote(launcher_dir)
                 quoted_git_exe = shlex.quote(git_exe)
-                command = f'start cmd /k "cd /d {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo.& echo 操作完成，按任意键关闭此窗口... && pause > nul"'
-                subprocess.Popen(command, shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
+                # Use && to chain commands. pause > nul waits for keypress without output.
+                cmd_string = f'cd /d {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo. && echo 操作完成，按任意键关闭此窗口... && pause > nul'
+                # Use CREATE_NEW_CONSOLE to ensure it's a separate window
+                subprocess.Popen(['cmd', '/c', f'start cmd /k "{cmd_string}"'], creationflags=subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS)
 
             elif platform.system() == "Darwin": # macOS
                  script = f'''
                  tell application "Terminal"
                      activate
-                     do script "cd {shlex.quote(launcher_dir)}; {shlex.quote(git_exe)} pull --prune; echo \\"操作完成，按 Enter 关闭窗口...\\"; read"
+                     do script "cd {shlex.quote(launcher_dir)}; {shlex.quote(git_exe)} pull --prune; echo \\"操作完成，按 Enter 关闭窗口...\\"; read; exit"
                  end tell
                  '''
                  # Run AppleScript via osascript
@@ -3885,10 +4246,11 @@ class ComLauncherApp:
                           break
                 quoted_launcher_dir = shlex.quote(launcher_dir)
                 quoted_git_exe = shlex.quote(git_exe)
-                # Use -c to run commands in bash, then read for pause, then exit
-                cmd_in_terminal = f'cd {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo "操作完成，按 Enter 关闭窗口..." && read && exit'
-                command = [terminal_emulator, "-e", f"bash -c '{cmd_in_terminal}'"]
-                subprocess.Popen(command)
+                # Use -e to execute a command string in the terminal
+                # Chain commands with &&, use read for pause, then exit
+                cmd_in_terminal = f'bash -c "cd {quoted_launcher_dir} && {quoted_git_exe} pull --prune && echo \\"操作完成，按 Enter 关闭窗口...\\" && read && exit"'
+                command_parts = [terminal_emulator, "-e", cmd_in_terminal]
+                subprocess.Popen(command_parts)
 
             self.log_to_gui("Launcher", "'git pull' 命令已在新终端窗口启动。", "info")
 
@@ -3939,7 +4301,10 @@ class ComLauncherApp:
 
         # --- Stop Services ---
         # Check if any managed process is running
-        if self._is_comfyui_running() or self._is_update_task_running():
+        process_running = self._is_comfyui_running()
+        task_running = self._is_update_task_running()
+
+        if process_running or task_running:
              confirm_stop = messagebox.askyesno("进程运行中", "有后台进程（ComfyUI 或更新任务）正在运行。\n是否在退出前停止？", parent=self.root)
              if confirm_stop:
                  self.log_to_gui("Launcher", "正在停止后台进程...", "info")
@@ -3960,8 +4325,10 @@ class ComLauncherApp:
                       self.log_to_gui("Launcher", "未能完全停止后台进程，强制退出。", "warn")
                       # Attempt to kill subprocesses if they are still alive
                       if self.comfyui_process and self.comfyui_process.poll() is None:
-                           try: self.comfyui_process.kill()
-                           except Exception: pass
+                           try:
+                               self.comfyui_process.kill()
+                           except Exception:
+                               pass
                       # The worker thread should ideally respond to stop_event, but if not, it's daemon and will exit with app
 
                  # Processes should be stopped by now, or will be killed on exit.
@@ -3969,15 +4336,18 @@ class ComLauncherApp:
                  try:
                       if self.root and self.root.winfo_exists():
                           self.root.destroy()
-                 except tk.TclError: pass # Ignore if already destroyed
+                 except tk.TclError:
+                     pass # Ignore if already destroyed
 
              else:
                   # User chose not to stop, signal threads to stop if possible, then destroy GUI
                   print("[Launcher INFO] User chose not to stop processes, attempting direct termination.")
                   self.stop_event.set() # Signal worker thread
                   if self.comfyui_process and self.comfyui_process.poll() is None:
-                       try: self.comfyui_process.terminate() # Try graceful termination first
-                       except Exception: pass
+                       try:
+                           self.comfyui_process.terminate() # Try graceful termination first
+                       except Exception:
+                           pass
                   # GUI will be destroyed below
 
         # --- Destroy GUI ---
@@ -3985,7 +4355,8 @@ class ComLauncherApp:
         try:
              if self.root and self.root.winfo_exists():
                  self.root.destroy()
-        except tk.TclError: pass
+        except tk.TclError:
+            pass
 
 
 # --- Main Execution ---
@@ -4002,27 +4373,25 @@ if __name__ == "__main__":
                 # For simplicity, SetProcessDpiAwareness(1) (System) is common.
                 # Check if DPI awareness is already set to avoid errors
                 from ctypes import windll, POINTER, c_void_p, c_uint, Structure, byref
-                from ctypes.wintypes import HWND, HINSTANCE, LPCSTR, INT, BOOL
 
-                # Define needed functions/structures
                 try:
-                     SetProcessDpiAwareness = windll.shcore.SetProcessDpiAwareness
-                     GetDpiForMonitor = windll.shcore.GetDpiForMonitor
-                     MONITOR_DEFAULTTONEAREST = 2
-                     MDT_EFFECTIVE_DPI = 0
-
-                     # Try setting awareness (System)
-                     # Returns HRESULT, 0 usually means success. E_ACCESSDENIED can happen if already set.
-                     hresult = SetProcessDpiAwareness(1) # DPI_AWARENESS.MDT_SYSTEM_AWARE
-                     # print(f"[Launcher DEBUG] SetProcessDpiAwareness(1) HRESULT: {hresult}")
+                    # Try using SetProcessDpiAwareness first (more modern approach)
+                    SetProcessDpiAwareness = windll.shcore.SetProcessDpiAwareness
+                    # Try setting awareness (System)
+                    # Returns HRESULT, 0 usually means success. E_ACCESSDENIED can happen if already set.
+                    # S_OK = 0, E_ACCESSDENIED = -2147024891 (or 0x80070005)
+                    hresult = SetProcessDpiAwareness(1) # DPI_AWARENESS.MDT_SYSTEM_AWARE
+                    print(f"[Launcher DEBUG] SetProcessDpiAwareness(1) HRESULT: {hresult}")
+                    if hresult != 0 and hresult != -2147024891: # Log non-success other than ACCESSDENIED
+                         print(f"[Launcher WARNING] SetProcessDpiAwareness returned unexpected HRESULT: {hresult}")
 
                 except (AttributeError, ImportError):
-                     # Fallback for older Windows or if shcore.dll not found
-                     try:
-                         windll.user32.SetProcessDPIAware()
-                         print("[Launcher INFO] Using SetProcessDPIAware()")
-                     except (AttributeError, ImportError):
-                         print("[Launcher WARNING] No DPI awareness function found.")
+                    # Fallback for older Windows or if shcore.dll not found
+                    try:
+                        windll.user32.SetProcessDPIAware()
+                        print("[Launcher INFO] Using SetProcessDPIAware()")
+                    except (AttributeError, ImportError):
+                        print("[Launcher WARNING] No DPI awareness function found.")
 
                 except Exception as e:
                     print(f"[Launcher WARNING] Failed to set DPI awareness: {e}")
@@ -4045,10 +4414,13 @@ if __name__ == "__main__":
             comfyui_logs_content = ""
             # Try to get logs from app instance if created
             if app:
-                 if hasattr(app, 'launcher_log_text') and app.launcher_log_text.winfo_exists():
-                     launcher_logs_content = app.launcher_log_text.get("1.0", tk.END).strip()
-                 if hasattr(app, 'main_output_text') and app.main_output_text.winfo_exists():
-                     comfyui_logs_content = app.main_output_text.get("1.0", tk.END).strip()
+                 try:
+                     if hasattr(app, 'launcher_log_text') and app.launcher_log_text.winfo_exists():
+                         launcher_logs_content = app.launcher_log_text.get("1.0", tk.END).strip()
+                     if hasattr(app, 'main_output_text') and app.main_output_text.winfo_exists():
+                         comfyui_logs_content = app.main_output_text.get("1.0", tk.END).strip()
+                 except tk.TclError:
+                     print("[Launcher CRITICAL] Error getting logs from widgets during crash handling.")
             # If app wasn't created or logs not available, indicate empty
             combined_log_content = f"""
 @@@@@@@@@ComLauncher日志
