@@ -3182,19 +3182,25 @@ class ComLauncherApp:
              item_data.setdefault('date_iso', '')
              item_data.setdefault('description', 'N/A')
 
-
              # Determine styles for alternating backgrounds
              row_frame_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}.TFrame'
              label_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}.TLabel'
              highlight_style = f'ModalRow{"Odd" if i % 2 == 0 else "Even"}Highlight.TLabel'
 
              # Create a frame for this row to hold the background color and contain the widgets
-             row_frame = ttk.Frame(scrollable_frame, style=row_frame_style, padding=(0, 3))
+             row_frame = ttk.Frame(scrollable_frame, style=row_frame_style, padding=(0, 3)) # Keep padding here
              # FIX 2: Grid row_frame into scrollable_frame, spanning ALL columns
-             row_frame.grid(row=i, column=0, columnspan=5, sticky="ew", padx=0, pady=0)
+             row_frame.grid(row=i, column=0, columnspan=5, sticky="ew", padx=0, pady=0) # No padx/pady on the row_frame itself
 
              # FIX 2: DO NOT configure columns on row_frame itself.
              # row_frame.columnconfigure(...) <-- REMOVED
+             # MODIFICATION: Configure columns on row_frame to match the header
+             row_frame.columnconfigure(0, weight=4, minsize=250) # Version Name
+             row_frame.columnconfigure(1, weight=1, minsize=80)  # Status
+             row_frame.columnconfigure(2, weight=1, minsize=100) # Commit ID
+             row_frame.columnconfigure(3, weight=1, minsize=110) # Date
+             row_frame.columnconfigure(4, weight=0, minsize=80)  # Button
+
 
              try:
                  date_str = item_data['date_iso']
@@ -3206,7 +3212,7 @@ class ComLauncherApp:
              commit_id = item_data['commit_id']
              version_name = item_data['name']
              version_type = item_data['type']
-             description = item_data['description']
+             # description = item_data['description'] # Description is not displayed in columns in the screenshot
 
              # Concatenate type and name for the first column (Version)
              version_display = f"{version_type} / {version_name}"
@@ -3223,13 +3229,18 @@ class ComLauncherApp:
              # FIX 2: Ensure widgets within row_frame are gridded into columns 0 through 4.
              # Their size and placement within these columns will be influenced by the
              # *parent* scrollable_frame's column configuration and their own sticky settings.
+             # MODIFICATION: Grid into row_frame's columns
              version_label_widget = ttk.Label(row_frame, text=version_display, style=label_style, anchor=tk.W, wraplength=240) # Use fixed wrap for simplicity
-             version_label_widget.grid(row=0, column=0, sticky='w', padx=5, pady=1)
+             # MODIFICATION: Grid into row_frame, column 0
+             version_label_widget.grid(row=0, column=0, sticky='w', padx=(5,0), pady=1) # Use padx for internal horizontal spacing
 
              status_label_widget = ttk.Label(row_frame, text=status_text, style=status_label_actual_style, anchor=tk.CENTER)
+             # MODIFICATION: Grid into row_frame, column 1
              status_label_widget.grid(row=0, column=1, sticky='ew', padx=5, pady=1) # Sticky EW for centering
 
+             # MODIFICATION: Grid into row_frame, column 2
              ttk.Label(row_frame, text=commit_id[:8], style=label_style, anchor=tk.W).grid(row=0, column=2, sticky='w', padx=5, pady=1)
+             # MODIFICATION: Grid into row_frame, column 3
              ttk.Label(row_frame, text=date_display, style=label_style, anchor=tk.W).grid(row=0, column=3, sticky='w', padx=5, pady=1)
              # Adding a description label here if needed
              # ttk.Label(row_frame, text=description, style=label_style, anchor=tk.W, wraplength=300).grid(row=0, column=4, sticky='w', padx=5, pady=1) # Example if adding description col
@@ -3237,6 +3248,7 @@ class ComLauncherApp:
 
              switch_btn = ttk.Button(row_frame, text="切换", style="Modal.TButton", width=6,
                                      command=lambda c_id=commit_id, win=modal_window, name=node_name: self._on_modal_switch_confirm(win, name, c_id)) # Pass node_name and modal_window
+             # MODIFICATION: Grid into row_frame, column 4
              switch_btn.grid(row=0, column=4, sticky='e', padx=(5, 10), pady=1) # Align button right
 
              if status_text == "当前":
