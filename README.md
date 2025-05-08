@@ -48,7 +48,8 @@ After launching, the program interface is concise and intuitive, mainly divided 
 
 #### 4. Installation Instructions
 
-1.  Clone the repository to the same directory level as your ComfyUI installation:
+1.  Download the zip package from https://github.com/KERRY-YUAN/ComLauncher and extract it to the same directory level as your ComfyUI installation.
+    OR Clone the repository to the same directory level as your ComfyUI installation:
     ```bash
     cd /path/to/directory_containing_ComfyUI/
     git clone https://github.com/KERRY-YUAN/ComLauncher.git
@@ -173,9 +174,12 @@ ComLauncher/
 	
 #### 4. 安装说明
 
-1.  将仓库克隆到 ComfyUI 的同级目录：
-    cd /path/to/ComfyUI同级目录/
+1.  在https://github.com/KERRY-YUAN/ComLauncher下载压缩包后解压至 ComfyUI 的同级目录
+    或将仓库克隆到 ComfyUI 的同级目录：
+    ```bash
+    cd /path/to/directory_containing_ComfyUI/
     git clone https://github.com/KERRY-YUAN/ComLauncher.git
+    ```
 	(请将 /path/to/directory_containing_ComfyUI/ 替换为你实际存放 ComfyUI 目录的父级目录路径，例如，如果你的 ComfyUI 目录在 D:\AI\ComfyUI，你需要 cd D:\AI\)
 2.  运行 ComLauncher 目录下的 ComLauncher.exe文件。
 
@@ -203,8 +207,8 @@ ComLauncher/
         *   **节点标签页：**
             *   有搜索框、 "搜索" 按钮、"刷新列表" 按钮、"切换版本" 按钮、"卸载节点" 按钮、"更新全部" 按钮。
             *   默认列表显示当前 `ComfyUI 安装目录\custom_nodes` 内的全部已安装节点。列表包含节点名称、状态、本地ID、仓库ID、仓库地址信息。
-			*   "切换版本" 按钮：点击后在单独弹窗显示该节点的历史版本列表。"版本切换" 弹窗内包含版本、提交 ID、更新日期及对应的 "切换" 按钮。
-			*   "更新全部" 按钮：点击后根据 "仓库ID" 更新当前本地节点。
+            *   "切换版本" 按钮：点击后在单独弹窗显示该节点的历史版本列表。"版本切换" 弹窗内包含版本、提交 ID、更新日期及对应的 "切换" 按钮。
+            *   "更新全部" 按钮：点击后根据 "仓库ID" 更新当前本地节点。
             *   "刷新列表" 按钮，用于刷新节点列表显示。
             *   在搜索框输入文字并点击 "搜索" 按钮后，列表将显示已安装和未安装的、与搜索条件及 "节点配置地址" 匹配的节点。
             *   读取节点 Git 仓库地址和获取仓库 ID/更新日期等耗时 Git 操作应在单独线程中执行，不阻塞主界面和 ComfyUI 的启动。
