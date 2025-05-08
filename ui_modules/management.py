@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: ui_modules/management.py
-# Version: Kerry, Ver. 2.6.2 - Management Tab Module (Fixed Bugs + Node Double Click)
+# Management Tab Module (Fixed Bugs + Node Double Click)
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog, Toplevel, font as tkfont # Import Toplevel for modal window

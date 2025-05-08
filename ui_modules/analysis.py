@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: ui_modules/analysis.py
-# Version: Kerry, Ver. 2.6.2 - Analysis Tab Module (Fixed Attributes)
+# Analysis Tab Module (Fixed Attributes)
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, font as tkfont

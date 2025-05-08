@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # File: ui_modules/logs.py
-# Version: Kerry, Ver. 2.6.2 - Logs Tab Module
+# Logs Tab Module
 
 import tkinter as tk
 from tkinter import ttk, scrolledtext

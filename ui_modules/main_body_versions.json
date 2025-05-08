@@ -2,16 +2,16 @@
     {
         "type": "branch",
         "name": "origin",
-        "commit_id": "271c9c5b9eb027c682161ed7848bbf640253f973",
-        "date_iso": "2025-05-06T09:52:37-04:00",
-        "description": "Better mem estimation for the LTXV 13B model. (#7963)"
+        "commit_id": "c7c025b8d16f7f34b01409ead4dba4476cc64dae",
+        "date_iso": "2025-05-08T01:22:23-04:00",
+        "description": "Adjust memory estimation code for ACE VAE. (#7990)"
     },
     {
         "type": "branch",
         "name": "master",
-        "commit_id": "271c9c5b9eb027c682161ed7848bbf640253f973",
-        "date_iso": "2025-05-06T09:52:37-04:00",
-        "description": "Better mem estimation for the LTXV 13B model. (#7963)"
+        "commit_id": "c7c025b8d16f7f34b01409ead4dba4476cc64dae",
+        "date_iso": "2025-05-08T01:22:23-04:00",
+        "description": "Adjust memory estimation code for ACE VAE. (#7990)"
     },
     {
         "type": "branch",

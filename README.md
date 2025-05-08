@@ -46,7 +46,17 @@ After launching, the program interface is concise and intuitive, mainly divided 
     *   **日志 / Logs:** Separately displays detailed running logs for ComLauncher and ComfyUI.
     *   **分析 / Analysis:** Used to configure the AI service interface and key. Combines logs with "User Request" input, sends for AI diagnosis, and simulates executing fix suggestions.
 
-#### 4. Detailed Interface
+#### 4. Installation Instructions
+
+1.  Clone the repository to the same directory level as your ComfyUI installation:
+    ```bash
+    cd /path/to/directory_containing_ComfyUI/
+    git clone https://github.com/KERRY-YUAN/ComLauncher.git
+    ```
+    (Replace `/path/to/directory_containing_ComfyUI/` with the actual path to the folder where your ComfyUI directory is located, e.g., if ComfyUI is in `D:\AI\ComfyUI`, you would `cd D:\AI\`)
+2.  Run the `ComLauncher.exe` file located in the `ComLauncher` directory.
+
+#### 5. Detailed Interface
 
 **Interface and Operation Logic (in order):**
 
@@ -122,7 +132,7 @@ After launching, the program interface is concise and intuitive, mainly divided 
 	
 ```
 ComLauncher/
-├─ templates/                       # 模板文件（主要是 HTML 模板）
+├─ templates/                       # 模板文件（主要是图标文件）
 │  └─ icon.ico                     # ico 文件
 ├─ ui_modules/                        # 界面目录
 │  ├─ settings.py                   # 设置标签页UI与逻辑
@@ -160,8 +170,16 @@ ComLauncher/
     *   **管理 / Management:** 负责 ComfyUI 本体和 custom_nodes 节点的版本与安装管理。
     *   **日志 / Logs:** 分别显示 ComLauncher 和 ComfyUI 的详细运行日志。
     *   **分析 / Analysis:** 用于配置 AI 服务的接口和密匙。将日志结合“用户诉求”输入，发送 AI 诊断并模拟执行修复建议。
+	
+#### 4. 安装说明
 
-#### 4. 详细界面
+1.  将仓库克隆到 ComfyUI 的同级目录：
+    cd /path/to/ComfyUI同级目录/
+    git clone https://github.com/KERRY-YUAN/ComLauncher.git
+	(请将 /path/to/directory_containing_ComfyUI/ 替换为你实际存放 ComfyUI 目录的父级目录路径，例如，如果你的 ComfyUI 目录在 D:\AI\ComfyUI，你需要 cd D:\AI\)
+2.  运行 ComLauncher 目录下的 ComLauncher.exe文件。
+
+#### 5. 详细界面
 	
 **界面及运行逻辑 (按顺序)：**
 
@@ -245,22 +263,30 @@ PyTorch与xFormers：推荐并罗列适合当前系统的PyTorch与xFormers版�
 对应所有界面上的文字、日志等内容，均切换"语言/Language栏"后按照其选中的语言显示。其中“文件夹快捷方式"部分不做调整，仍保留全英文显示，
 
 **修改日志：**
-
-##待修改：2.6.3：在当前版本代码基础上，严格保持现有布局、代码结构和功能，增加以下修改：
-
+##待修改：2.6.4：在当前版本代码基础上，严格保持现有布局、代码结构和功能，增加以下修改：
 @@@修改1：
 
 @@@以下为当前版本代码：
 
+##2.6.3：在当前版本代码基础上，严格保持现有布局、代码结构和功能，增加以下修改：
+
+@@@修改1：
+修复git版本更新的问题。
+@@@修改2：
+comlauncher打开后即可显示"运行"，且"运行"状态仅受当前是否打开comfyui影响，不受其他的影响（如不受后台加载本体及节点列表影响）。进度条在后台无运行时也显示为静止状态，只有后台有动作时为进度条循环状态,输出完整launcher.py文件，
+
+@@@以下为当前版本代码：
+
 ##2.6.2：节点列表增加暂存功能；节点双击可切换版本；代码拆分成模块；
+
 在当前版本代码基础上，视觉上严格保持2.5.11布局和功能，增加以下修改：
 
 @@@@@修改原则：在当前2.6.1版本代码基础上，视觉上严格保持2.5.11版布局和功能。对于本次未产生调整的代码文件，仅展示文件名称，其代码省略
 将上述代码更新到2.6.1后，报错如下，请修复：
 @@@@@错误1：设置界面原有的"文件夹快捷方式"样式（框）及"基本路径与端口"栏内"浏览"和"打开"样式（框）丢失，这是不对的，请补充回来
-@@@@@错误2：launcher打开后即可显示"运行"，不受其他任何的影响。而不是停在"停止"和进度条循环上
+@@@@@错误2：launcher打开后即可显示"运行"，不受其他任何的影响。而不是停在"停止"和进度条循环上（未修复成功）
 @@@@@错误3："管理"标签页>>"节点"标签内，列表加载后"搜索"栏各项都为无法运行，请按照2.5.11的原有逻辑修正
-@@@@@修改4：增加功能："管理"标签页>>"节点"标签内，对列表内节点双击也可触发"切换版本"操作然后弹窗
+@@@@@修改4：增加功能："管理"标签页>>"节点"标签内，对列表内节点双击也可触发"切换版本"操作然后弹窗。
 
 ##2.6.1：在当前版本代码基础上，严格保持现有布局、代码结构和功能，增加以下修改：
 
