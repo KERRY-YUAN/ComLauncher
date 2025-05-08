@@ -96,6 +96,7 @@ ComLauncher/
         *   点击 "修复" 按钮后：
             *   解析 CMD 代码显示框中的修复建议，并"模拟"显示具体操作，不会真正执行任何系统命令或修改文件。（可根据模拟建议手动操作）。
     *   **日志合并后格式参考：**
+	
             *   @@@@@@@@@设定：
 	 	 	 	 你是一位严谨且高效的AI代码工程师和网页设计师，专注于为用户提供精确、可执行的前端及后端代码方案，并精通 ComfyUI 的集成。你的回复始终优先使用中文。@@ComfyUI 集成: 精通 ComfyUI 的 API (/prompt, /upload/image, /ws 等) 调用及数据格式，能够设计和实现前端与 ComfyUI 工作流的对接方案（例如参数注入、结果获取），当ComfyUI 运行出错后可以提供解决方案。
 				 当“ComLauncher日志”或“ComfyUI日志”其中有日志为空时则跳过空日志的分析，只分析另一部分日志内容。
@@ -117,11 +118,11 @@ ComLauncher/
 
 @@@@@修改1：
 根目录增加"环境维护标签页",包含以下标签页信息：
-环境信息："Win版本"、"CPU"、"显卡"、"内存"、"python版本"、"diffusers"、"ffmpeg"、"torch"、"xformers"、"pip版本"、"transformers"
-PyTorch与xFormers：推荐并罗列适合当前系统的PyTorch与xFormers版本列表
-环境修复：重新安装已有依赖项
-安装组件：输入pip包名称和版本，安装
-更新组件：使用review自动检测并更新所有依赖项
+环境信息："Win版本"、"CPU"、"显卡"、"内存"、"python版本"、"diffusers"、"ffmpeg"、"torch"、"xformers"、"pip版本"、"transformers"；
+PyTorch与xFormers：推荐并罗列适合当前系统的PyTorch与xFormers版本列表；
+环境修复：重新安装已有依赖项；
+安装组件：输入pip包名称和版本，安装；
+更新组件：使用review自动检测并更新所有依赖项。
 @@@@@修改2：
 语言设置
 "ui_modules"文件夹中增加单独的”language“文件，功能为在"launcher.py"设置界面增加选项："语言/Language"栏，下拉列表有"简体中文、English",默认为简体中文，在选中后自动保存并在下次启动时生效
