@@ -1,3 +1,119 @@
+### ComLauncher Program Description
+**ComLauncher**
+
+*   A simplified integrated interface designed to facilitate ComfyUI management, enabling quick access to ComfyUI settings, updates, node management, background log viewing, and online API diagnosis with (simulated) fixes. Interface features reference existing ComfyUI launcher designs (Paying tribute to the open-source community Iron Pot Stew AIGODLIKE and Mr. Qiu Ye aaaki).
+
+#### 1. Folder Structure
+
+```
+ComLauncher/
+├─ templates/                       # Template files (mainly icon)
+│  └─ icon.ico                     # ico file
+├─ ui_modules/                        # UI modules directory
+│  ├─ settings.py                   # Settings tab UI and logic
+│  ├─ management.py                 # Management tab UI and logic
+│  ├─ logs.py                       # Logs tab UI and logic
+│  ├─ analysis.py                   # Analysis tab UI and logic
+│  ├─ launcher_config.json          # Launcher configuration file
+│  ├─ ComLauncher.org               # Launcher log file
+│  ├─ main_body_versions.json       # Main body version persistence (cached data)
+│  └─ nodes_list.json               # Node list persistence (cached data)
+├─ ComLauncher.exe                      # Main launcher executable
+├─ launcher.py                      # Main launcher script
+├─ README.md                        # Project README file
+└─ requirements.txt                 # Python dependencies list
+```
+
+#### 2. Usage Instructions
+
+1.  **First Launch:** Place the program files in a folder and run `ComLauncher.exe`.
+2.  **Configure Basic Settings:** Switch to the "Settings" tab and fill in your ComfyUI installation directory, the path to the Python executable used to run ComfyUI, and the path to the Git executable. These are prerequisites for the program to function and perform management operations. You can also adjust performance options here.
+3.  **Run ComfyUI:** Return to the top of the main interface and click the "Run ComfyUI" button. The program will check the configuration and then start the ComfyUI backend service.
+4.  **Open ComfyUI Interface:** After ComfyUI has successfully started (confirm on the "Logs" tab), click the "Open" button next to the port number on the "Settings" tab, or manually access `http://127.0.0.1:YOUR_PORT_NUMBER` (default is 8188) in your browser.
+5.  **Stop ComfyUI:** Click the "Stop" button on the top control bar.
+6.  **Manage Versions and Nodes:** Switch to the "Management" tab. Refresh the main body version list or node list as needed. Select an item from the list and click the corresponding button to activate, install, update, or uninstall. **IMPORTANT: Before performing main body or node update/install/uninstall operations, ComfyUI must be stopped.**
+7.  **Diagnose Errors:** If ComfyUI encounters an error during operation, you can view detailed information on the "Logs" tab. Then switch to the "Analysis" tab, configure the AI interface and key (if not already set), and click the "Diagnose" button. The program will send the logs to the AI for analysis, and the results will be displayed in the area below. The AI may provide fix suggestions and commands; you can click "Fix" to **simulate** running these commands. **Note that this is ONLY a simulation and will NOT actually modify files.** You need to manually perform the actual operations based on the simulation results in a terminal.
+8.  **Exit Program:** Simply close the window. The program will attempt to stop the ComfyUI service before exiting and save logs and configuration.
+
+#### 3. Interface Overview
+
+After launching, the program interface is concise and intuitive, mainly divided into a top control bar and four main tab areas below.
+
+*   **Top Control Bar:** Displays the program's current status (e.g., Running, Stopped), and buttons to start and stop ComfyUI entirely.
+*   **Tab Area:**
+    *   **设置 / Settings:** Configure basic settings like ComfyUI path, Python path, Git executable path, etc., as well as various performance optimization options, and includes shortcuts to open common ComfyUI subfolders.
+    *   **管理 / Management:** Responsible for managing versions and installations of the ComfyUI main body and custom_nodes.
+    *   **日志 / Logs:** Separately displays detailed running logs for ComLauncher and ComfyUI.
+    *   **分析 / Analysis:** Used to configure the AI service interface and key. Combines logs with "User Request" input, sends for AI diagnosis, and simulates executing fix suggestions.
+
+#### 4. Detailed Interface
+
+**Interface and Operation Logic (in order):**
+
+1.  **设置 / Settings** All changes in settings are automatically saved to `launcher_config.json` file.
+    *   **Layout and Content:**
+    *   **Basic Paths and Ports:**
+        *   "ComfyUI Installation Directory" input field, "ComfyUI Listen and Shared Port" input field.
+        *   "ComfyUI Listen and Shared Port" input field (default 8188), and "Open" button to open this address in a browser.
+        *   "Git Executable Path" input field, the program calls this path when Git operations are needed.
+    *   **Performance and VRAM Optimization:** Used to configure command-line arguments used when starting ComfyUI.
+    *   **Folder Shortcuts Area:** Provides buttons that can quickly open the following folders within the ComfyUI installation directory: `workflows`, `custom_nodes` (Nodes), `models`, `loras`, `input`, `output`.
+
+2.  **管理 / Management**
+    *   **Layout:**
+    *   **Repository Address Area:**
+        *   "Main Repository Address" input field, "Node Configuration Address" input field.
+    *   **Node Management Area:**
+        *   **本体 / Main Body Tab:**
+            *   Displays the historical version list of the ComfyUI main body obtained from the "Main Repository Address".
+            *   After selecting a version from the list, clicking the "Activate Selected Version" button downloads and overwrites the installation with the chosen ComfyUI main body version.
+        *   **节点 / Nodes Tab:**
+            *   Contains a search box, "Search" button, "Refresh List" button, "Switch Version" button, "Uninstall Node" button, "Update All" button.
+            *   The default list displays all installed nodes within the current `ComfyUI Installation Directory\custom_nodes`. The list includes node name, status, local ID, repository info, and repository URL.
+            *   "Switch Version" button: Clicking it opens a separate window displaying the node's historical version list. The "Version Switch" window contains version, commit ID, update date, and a corresponding "Switch" button.
+            *   "Update All" button: Clicking it updates the current local nodes based on their tracked remote branch.
+            *   "Refresh List" button: Used to refresh the displayed node list.
+            *   After entering text in the search box and clicking the "Search" button, the list will display installed and uninstalled nodes that match the search criteria and the "Node Configuration Address".
+            *   Time-consuming Git operations like reading node Git repository addresses and fetching repository ID/update dates should be executed in separate threads, so as not to block the main interface and ComfyUI startup.
+
+3.  **日志 / Logs**
+    *   Includes two sub-tabs: "ComLauncher Logs" and "ComfyUI Logs".
+        *   **ComLauncher Logs Tab:** Independently displays all running logs of the ComLauncher program.
+        *   **ComfyUI Logs Tab:** Independently displays all running logs of the ComfyUI process.
+
+4.  **分析 / Analysis**
+    *   **Layout:**
+    *   **Top Area:**
+        *   "API Endpoint" input field, "API Key" input field, used to configure the access address and key for the AI diagnosis service.
+        *   "Diagnose" button: Clicking it triggers the log sending and analysis task.
+        *   "Fix" button: Clicking it simulates executing the suggested fix commands from the analysis result.
+        *   "User Request" text box: Used to input the specific problem description you encountered, assisting the AI's understanding.
+    *   **Bottom Area:** CMD code display box, used to display diagnosis results and the simulated fix process.
+    *   **Function Logic:**
+        *   After clicking the "Diagnose" button (requires "API Endpoint" and "API Key" to be filled):
+            *   Merge the contents of "ComLauncher Logs", "ComfyUI Logs", and "User Request" according to the specified format (see reference below).
+            *   Connect via the configured API endpoint to send the merged logs to an external AI service (e.g., send to Gemini 2.5 API and receive feedback).
+            *   After receiving the AI service response, extract and display the returned analysis results and fix suggestions.
+        *   After clicking the "Fix" button:
+            *   Parse the fix suggestions from the CMD code display box and **simulate** displaying the specific operations. This will not actually execute any system commands or modify files. (You can perform manual operations based on the simulated suggestions).
+    *   **Log Merging Format Reference:**
+
+        ```
+        @@@@@@@@@Setting:
+        You are a rigorous and efficient AI code engineer and web designer, focused on providing users with accurate and executable frontend and backend code solutions, and proficient in ComfyUI integration. Your replies always prioritize Chinese.@@Core Capabilities:@@ComfyUI Integration: Proficient in ComfyUI's API (/prompt, /upload/image, /ws, etc.) calls and data formats, capable of designing and implementing frontend integration solutions with ComfyUI workflows (e.g., parameter injection, result retrieval). When ComfyUI encounters errors, you can provide solutions. If either "ComLauncher Logs" or "ComfyUI Logs" is empty, skip the analysis of the empty log and only analyze the content of the other part.
+        The following are user requests and running logs:
+        @@@@@@@@@User Request:
+        (Detailed user request input)
+
+        @@@@@@@@@ComLauncher Background Logs
+        (Detailed log content)
+
+        @@@@@@@@@ComfyUI Logs
+        (Detailed log content)
+        ```
+
+
+
 ### ComLauncher 程序说明
     **ComLauncher**
     *   **一个便于管理ComfyUI的简化集成界面，用于快捷管理 ComfyUI 的设置、更新、节点管理、后台日志查看以及API联网诊断与（模拟）修复。界面功能借鉴了现有 ComfyUI 启动器设计（向铁锅炖AIGODLIKE开源社区、秋叶aaaki大佬致敬）。
