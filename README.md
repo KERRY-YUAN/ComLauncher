@@ -35,6 +35,10 @@ ComLauncher/
 7.  **Diagnose Errors:** If ComfyUI encounters an error during operation, you can view detailed information on the "Logs" tab. Then switch to the "Analysis" tab, configure the AI interface and key (if not already set), and click the "Diagnose" button. The program will send the logs to the AI for analysis, and the results will be displayed in the area below. The AI may provide fix suggestions and commands; you can click "Fix" to **simulate** running these commands. **Note that this is ONLY a simulation and will NOT actually modify files.** You need to manually perform the actual operations based on the simulation results in a terminal.
 8.  **Exit Program:** Simply close the window. The program will attempt to stop the ComfyUI service before exiting and save logs and configuration.
 
+<video src="https://raw.githubusercontent.com/KERRY-YUAN/ComLauncher/main/templates/ComLauncher_60s.mp4" controls loop muted autoplay></video>
+
+![ComLauncher GIF Demo](https://raw.githubusercontent.com/KERRY-YUAN/ComLauncher/main/templates/ComLauncher_30s.gif)
+
 #### 3. Interface Overview
 
 After launching, the program interface is concise and intuitive, mainly divided into a top control bar and four main tab areas below.
@@ -160,6 +164,10 @@ ComLauncher/
 6.  **管理版本和节点:** 切换到“管理”选项卡。根据需要刷新本体版本列表或节点列表。选择列表中的项，然后点击相应的按钮进行激活、安装、更新或卸载操作。**重要：进行本体或节点更新/安装/卸载等操作前，必须先停止 ComfyUI。**
 7.  **诊断错误:** 如果 ComfyUI 运行出错，可以在“日志”标签页查看详细信息。然后切换到“分析”标签页，配置好 AI 接口和密匙（如果未配置），点击“诊断”按钮。程序会发送日志给 AI 进行分析，结果会显示在下方区域。AI 可能会给出修复建议和命令，你可以点击“修复”来**模拟**运行这些命令，**注意这只是模拟，不会真正修改文件**，你需要手动根据模拟结果在终端执行实际操作。
 8.  **退出程序:** 直接关闭窗口即可。程序会在退出前尝试停止 ComfyUI 服务，并保存日志和配置。
+
+<video src="https://raw.githubusercontent.com/KERRY-YUAN/ComLauncher/main/templates/ComLauncher_60s.mp4" controls loop muted autoplay></video>
+
+![ComLauncher GIF Demo](https://raw.githubusercontent.com/KERRY-YUAN/ComLauncher/main/templates/ComLauncher_30s.gif)
 
 #### 3. 界面概览
 
